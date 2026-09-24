@@ -1,0 +1,10 @@
+name = "vpn-backend"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+API_SECRET = "PublicVPN_Super_Secret_2026_Key"
+
+[[kv_namespaces]]
+binding = "VPN_DATA"
+id = "73219165768a41b6bb2f920ecb41ec06"

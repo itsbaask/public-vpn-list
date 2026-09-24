@@ -1,0 +1,55 @@
+name: Unified VPN Cloudflare Enterprise Sync Engine
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'   # Full reconciliation & cleanup every 4 hours
+  workflow_dispatch:
+    inputs:
+      sync_mode:
+        type: choice
+        description: 'Sync Mode'
+        required: true
+        default: 'auto'
+        options:
+          - 'auto'
+          - 'full_sync'
+          - 'dry_run'
+
+concurrency:
+  group: vpn-unified-cloud-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Safety & Unit Tests
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover tests
+
+      - name: Execute Unified Cloud Sync Engine
+        env:
+          PYTHONPATH: .
+          ALLOW_SEED_FALLBACK: "false"
+          MIN_SERVER_RATIO: "0.10"
+          MAX_DOWNLOAD_FAILURE_RATIO: "0.30"
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME || 'publicvpnlist-profiles' }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          PUBLICVPNLIST_ACCESS_KEY: ${{ secrets.PUBLICVPNLIST_ACCESS_KEY }}
+          PUBLIC_DATA_BASE_URL: ${{ secrets.PUBLIC_DATA_BASE_URL }}
+          DRY_RUN: ${{ github.event.inputs.sync_mode == 'dry_run' && 'true' || 'false' }}
+        run: python -m sync.main

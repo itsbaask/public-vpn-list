@@ -217,10 +217,10 @@ class OvpnDownloader:
                         import time
                         time.sleep(15.0)
                     else:
-                        status_code = res_tok.status_code if res_tok else "scrape"
-                        logger.warning(f"PublicVPNList token/download status {status_code} for {source_id}")
+                        status_date = res_tok.status_code if res_tok else "scrape"
+                        logger.debug(f"PublicVPNList token/download status {status_date} for {source_id}")
                 except Exception as e:
-                    logger.warning(f"PublicVPNList token download attempt {attempt} error for {source_id}: {e}")
+                    logger.debug(f"PublicVPNList token download attempt {attempt} error for {source_id}: {e}")
                     import time
                     time.sleep(1.5 * attempt)
 

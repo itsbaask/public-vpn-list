@@ -90,7 +90,14 @@ class VpnConnectionEngine @Inject constructor(
         }
     }
 
+    private var currentActivityContext: Context? = null
+
     override fun processCommand(command: VpnCommand) {
+        commandChannel.trySend(command)
+    }
+
+    fun processCommand(command: VpnCommand, activityContext: Context?) {
+        currentActivityContext = activityContext
         commandChannel.trySend(command)
     }
 
@@ -126,6 +133,9 @@ class VpnConnectionEngine @Inject constructor(
         activeConnectingServer = server
         _state.value = VpnState.Connecting(server)
 
+        val actCtx = currentActivityContext
+        currentActivityContext = null
+
         activeEngine = if (server.engine.uppercase() == "PROXY" || server.protocol.uppercase() != "OPENVPN") {
             proxyEngine
         } else {
@@ -143,7 +153,7 @@ class VpnConnectionEngine @Inject constructor(
                 yield() // Check for cancellation
 
                 // 2. Start VPN with selected engine
-                activeEngine.start(config, server.name)
+                activeEngine.start(config, server.name, actCtx)
                 
             } catch (e: CancellationException) {
                 Log.d("VpnConnectionEngine", "Connection cancelled")

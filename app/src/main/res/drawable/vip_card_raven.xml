@@ -1,0 +1,38 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+  <!-- Background Card Shape -->
+  <path
+      android:fillColor="#121117"
+      android:strokeColor="#211F2C"
+      android:strokeWidth="4"
+      android:pathData="M64,80 h384 c31.1,0 56,24.9 56,56 v240 c0,31.1 -24.9,56 -56,56 h-384 c-31.1,0 -56,-24.9 -56,-56 v-240 c0,-31.1 24.9,-56 56,-56 z"/>
+
+  <!-- Top Violet Band -->
+  <path
+      android:fillColor="#7C6CF0"
+      android:pathData="M64,80 h384 c31.1,0 56,24.9 56,56 v32 h-496 v-32 c0,-31.1 24.9,-56 56,-56 z"/>
+
+  <!-- Thin Lighter Strip -->
+  <path
+      android:fillColor="#A79CF7"
+      android:pathData="M8,168 h496 v18 h-496 z"/>
+
+  <!-- VIP Text & Dot -->
+  <path
+      android:strokeColor="#7C6CF0"
+      android:strokeWidth="30"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:fillColor="@android:color/transparent"
+      android:pathData="M118,240 L166,348 L214,240 M256,238 V350 M300,350 V238 H352 C382,238 382,268 382,298 C382,328 352,298 300,298"/>
+
+  <!-- Period Dot -->
+  <path
+      android:fillColor="#7C6CF0"
+      android:pathData="M392,352 h40 c7.2,0 13,5.8 13,13 s-5.8,13 -13,13 h-40 c-7.2,0 -13,-5.8 -13,-13 s5.8,-13 13,-13 z"/>
+
+</vector>

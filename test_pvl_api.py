@@ -1,7 +1,7 @@
 import urllib.request
 import json
 
-access_key = "pvlk_eb8cc33936641d9492cf0a2740c81412"
+access_key = "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
 protocols = ["openvpn", "vless", "vmess", "shadowsocks", "trojan", "hysteria2"]
 
 for proto in protocols:

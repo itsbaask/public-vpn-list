@@ -47,4 +47,15 @@ class SettingsRepository @Inject constructor(
     var vpnProtocolMode: String
         get() = prefs.getString("vpn_protocol_mode", "smart") ?: "smart"
         set(value) = prefs.edit().putString("vpn_protocol_mode", value).apply()
+
+    private val _languageFlow = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString("language", "") ?: "")
+    val languageFlow: kotlinx.coroutines.flow.StateFlow<String> = _languageFlow
+
+    var language: String
+        get() = prefs.getString("language", "") ?: ""
+        set(value) {
+            prefs.edit().putString("language", value).commit()
+            _languageFlow.value = value
+        }
+
 }

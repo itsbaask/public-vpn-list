@@ -1,0 +1,333 @@
+package com.kape.settings.ui.screens.tv
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kape.contracts.ConnectionInfoProvider
+import com.kape.settings.data.OpenVpnSettings
+import com.kape.settings.data.VpnProtocols
+import com.kape.settings.data.WireGuardSettings
+import com.kape.settings.ui.elements.OptionsDialog
+import com.kape.settings.ui.elements.ReconnectDialog
+import com.kape.settings.ui.elements.tv.TvSettingsItem
+import com.kape.settings.ui.elements.tv.TvSettingsToggle
+import com.kape.settings.ui.screens.mobile.EncryptionSelectionDialog
+import com.kape.settings.ui.screens.mobile.PortSelectionDialog
+import com.kape.settings.ui.screens.mobile.TransportSelectionDialog
+import com.kape.settings.ui.vm.SettingsViewModel
+import com.kape.settings.utils.getDefaultButtons
+import com.kape.ui.R
+import com.kape.ui.mobile.elements.Screen
+import com.kape.ui.tv.text.AppBarTitleText
+import com.kape.ui.utils.LocalColors
+import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+
+@Composable
+fun TvProtocolSettingsScreen() =
+    Screen {
+        val viewModel: SettingsViewModel = koinViewModel()
+        val openVpnSettings by viewModel.openVpnSettings.collectAsStateWithLifecycle()
+        val wireGuardSettings by viewModel.wireGuardSettings.collectAsStateWithLifecycle()
+        val autoSettings by viewModel.autoSettings.collectAsStateWithLifecycle()
+        val connectionInfoProvider: ConnectionInfoProvider = koinInject()
+        val initialFocusRequester = remember { FocusRequester() }
+
+        val protocolDialogVisible = remember { mutableStateOf(false) }
+        val transportDialogVisible = remember { mutableStateOf(false) }
+        val encryptionDialogVisible = remember { mutableStateOf(false) }
+        val portDialogVisible = remember { mutableStateOf(false) }
+        val protocolSelection by viewModel.selectedProtocol.collectAsStateWithLifecycle()
+        val portSelection = remember { mutableStateOf(openVpnSettings.port) }
+
+        LaunchedEffect(key1 = Unit) {
+            initialFocusRequester.requestFocus()
+        }
+
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize(),
+        ) {
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(),
+                thickness = 4.dp,
+                color =
+                    connectionInfoProvider.getTopBarConnectionColor(
+                        scheme = LocalColors.current,
+                    ),
+            )
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(start = 32.dp, top = 24.dp, end = 32.dp, bottom = 0.dp)
+                        .background(LocalColors.current.background),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AppBarTitleText(
+                        content = stringResource(id = R.string.protocols),
+                        textColor = LocalColors.current.onSurface,
+                        isError = false,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                ) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .weight(1.0f)
+                                .padding(end = 64.dp),
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.Top,
+                    ) {
+                        when (protocolSelection) {
+                            VpnProtocols.WireGuard ->
+                                TvWireguardProtocolSettingsScreen(
+                                    viewModel = viewModel,
+                                    initialFocusRequester = initialFocusRequester,
+                                    protocolDialogVisible = protocolDialogVisible,
+                                    wireGuardSettings,
+                                )
+
+                            VpnProtocols.OpenVPN ->
+                                TvOpenVpnProtocolSettingsScreen(
+                                    viewModel = viewModel,
+                                    initialFocusRequester = initialFocusRequester,
+                                    protocolDialogVisible = protocolDialogVisible,
+                                    transportDialogVisible = transportDialogVisible,
+                                    encryptionDialogVisible = encryptionDialogVisible,
+                                    portDialogVisible = portDialogVisible,
+                                    openVpnSettings,
+                                )
+
+                            VpnProtocols.Automatic -> {
+                                TvSettingsItem(
+                                    modifier = Modifier.focusRequester(initialFocusRequester),
+                                    titleId = R.string.protocol_selection_title,
+                                    subtitle = VpnProtocols.Automatic.name,
+                                ) {
+                                    protocolDialogVisible.value = true
+                                }
+                                TvSettingsToggle(
+                                    titleId = R.string.protocol_use_small_packets_title,
+                                    subtitleId = R.string.protocol_use_small_packets_description,
+                                    enabled = autoSettings.useSmallPackets,
+                                    toggle = {
+                                        viewModel.setAutoEnableSmallPackets(it)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Column(
+                        modifier = Modifier.weight(1.0f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_tv_settings),
+                            contentScale = ContentScale.Fit,
+                            contentDescription = null,
+                        )
+                    }
+                }
+            }
+            if (protocolDialogVisible.value) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color.Black.copy(alpha = 0.6f),
+                ) {
+                    OptionsDialog(
+                        titleId = R.string.protocol_selection_title,
+                        options =
+                            mapOf(
+                                VpnProtocols.OpenVPN to VpnProtocols.OpenVPN.name,
+                                VpnProtocols.WireGuard to VpnProtocols.WireGuard.name,
+                                VpnProtocols.Automatic to VpnProtocols.Automatic.name,
+                            ),
+                        buttons = getDefaultButtons(),
+                        onDismiss = { protocolDialogVisible.value = false },
+                        onConfirm = {
+                            val hasProtocolChanged = protocolSelection != it
+                            viewModel.selectProtocol(it)
+                            protocolDialogVisible.value = false
+
+                            if (hasProtocolChanged) {
+                                viewModel.showReconnectDialogIfVpnConnected()
+                            }
+                        },
+                        selection = protocolSelection,
+                    )
+                }
+            }
+            if (viewModel.reconnectDialogVisible.value) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color.Black.copy(alpha = 0.6f),
+                ) {
+                    ReconnectDialog(
+                        onReconnect = {
+                            viewModel.reconnect()
+                            viewModel.reconnectDialogVisible.value = false
+                        },
+                        onLater = {
+                            viewModel.reconnectDialogVisible.value = false
+                        },
+                    )
+                }
+            }
+
+            if (transportDialogVisible.value) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color.Black.copy(alpha = 0.6f),
+                ) {
+                    TransportSelectionDialog(
+                        viewModel = viewModel,
+                        transportDialogVisible = transportDialogVisible,
+                        transportSelection = openVpnSettings.transport,
+                        portSelection = portSelection,
+                        openVpnSettings,
+                    )
+                }
+            }
+
+            if (encryptionDialogVisible.value) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color.Black.copy(alpha = 0.6f),
+                ) {
+                    EncryptionSelectionDialog(
+                        viewModel = viewModel,
+                        encryptionDialogVisible = encryptionDialogVisible,
+                        encryptionSelection = openVpnSettings.dataEncryption,
+                    )
+                }
+            }
+
+            if (portDialogVisible.value) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color.Black.copy(alpha = 0.6f),
+                ) {
+                    PortSelectionDialog(
+                        viewModel = viewModel,
+                        portDialogVisible = portDialogVisible,
+                        portSelection = openVpnSettings.port,
+                    )
+                }
+            }
+        }
+    }
+
+@Composable
+private fun TvOpenVpnProtocolSettingsScreen(
+    viewModel: SettingsViewModel,
+    initialFocusRequester: FocusRequester,
+    protocolDialogVisible: MutableState<Boolean>,
+    transportDialogVisible: MutableState<Boolean>,
+    encryptionDialogVisible: MutableState<Boolean>,
+    portDialogVisible: MutableState<Boolean>,
+    openVpnSettings: OpenVpnSettings,
+) {
+    TvSettingsItem(
+        modifier = Modifier.focusRequester(initialFocusRequester),
+        titleId = R.string.protocol_selection_title,
+        subtitle = openVpnSettings.name,
+    ) {
+        protocolDialogVisible.value = true
+    }
+    TvSettingsItem(
+        titleId = R.string.protocol_transport_title,
+        subtitle = openVpnSettings.transport.value,
+    ) {
+        transportDialogVisible.value = !transportDialogVisible.value
+    }
+    TvSettingsItem(
+        titleId = R.string.protocol_data_encryption_title,
+        subtitle = openVpnSettings.dataEncryption.value,
+    ) {
+        encryptionDialogVisible.value = !encryptionDialogVisible.value
+    }
+    TvSettingsItem(
+        titleId = R.string.protocol_port_title,
+        subtitle = openVpnSettings.port,
+    ) {
+        portDialogVisible.value = !portDialogVisible.value
+    }
+    TvSettingsToggle(
+        titleId = R.string.protocol_use_small_packets_title,
+        subtitleId = R.string.protocol_use_small_packets_description,
+        enabled = openVpnSettings.useSmallPackets,
+        toggle = {
+            viewModel.setOpenVpnEnableSmallPackets(it)
+        },
+    )
+    TvSettingsItem(
+        titleId = R.string.protocol_handshake_title,
+        subtitle = openVpnSettings.handshake,
+    ) { }
+}
+
+@Composable
+private fun TvWireguardProtocolSettingsScreen(
+    viewModel: SettingsViewModel,
+    initialFocusRequester: FocusRequester,
+    protocolDialogVisible: MutableState<Boolean>,
+    wireGuardSettings: WireGuardSettings,
+) {
+    TvSettingsItem(
+        modifier = Modifier.focusRequester(initialFocusRequester),
+        titleId = R.string.protocol_selection_title,
+        subtitle = wireGuardSettings.name,
+    ) {
+        protocolDialogVisible.value = true
+    }
+    TvSettingsToggle(
+        titleId = R.string.protocol_use_small_packets_title,
+        subtitleId = R.string.protocol_use_small_packets_description,
+        enabled = wireGuardSettings.useSmallPackets,
+        toggle = {
+            viewModel.setWireGuardEnableSmallPackets(it)
+        },
+    )
+    TvSettingsItem(
+        titleId = R.string.protocol_handshake_title,
+        subtitle = wireGuardSettings.handshake,
+    ) { }
+}

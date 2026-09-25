@@ -1,545 +1,468 @@
 package com.corvus.vpn.ui.paywall
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.RemoveCircleOutline
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.corvus.vpn.ui.theme.CorvusVPNTheme
-import com.corvus.vpn.ui.theme.CrowAccent
-import com.corvus.vpn.ui.theme.CrowAccentBorder
-import com.corvus.vpn.ui.theme.CrowAccentGlow
-import com.corvus.vpn.ui.theme.CrowAccentText
-import com.corvus.vpn.ui.theme.CrowBlack
-import com.corvus.vpn.ui.theme.CrowBorder
-import com.corvus.vpn.ui.theme.CrowCore
-import com.corvus.vpn.ui.theme.CrowGold
-import com.corvus.vpn.ui.theme.CrowMuted
-import com.corvus.vpn.ui.theme.CrowSurface
-import com.corvus.vpn.ui.theme.CrowText
+import com.corvus.vpn.R
+import com.corvus.vpn.ui.theme.*
 
-// ============================================================================
-// Data Models
-// ============================================================================
-
-data class CrowPerk(
-    val icon: ImageVector,
-    val title: String,
-    val description: String
+data class PrivilegesRow(
+    val feature: String,
+    val freeValue: String,
+    val premiumValue: String,
+    val isCheckmark: Boolean = false,
+    val isFreeCheckmark: Boolean = false,
+    val isPremiumCheckmark: Boolean = true
 )
 
-data class CrowPlan(
+data class PaywallPlan(
     val id: String,
-    val name: String,
+    val title: String,
     val price: String,
-    val period: String,
-    val tag: String? = null,
-    val tagIsGold: Boolean = false
+    val periodInfo: String,
+    val badge: String? = null,
+    val isBestValue: Boolean = false
 )
-
-private val perks = listOf(
-    CrowPerk(Icons.Filled.RemoveCircleOutline, "No Ads", "Zero interruptions. Ever."),
-    CrowPerk(Icons.Filled.Timer, "Unlimited Time", "Fly as long as you want, no session caps."),
-    CrowPerk(Icons.Filled.Bolt, "Premium Servers", "Access to the fastest locations worldwide."),
-    CrowPerk(Icons.Filled.Lock, "Military Encryption", "Absolute protection, sharp as a raven's talon.")
-)
-
-private val plans = listOf(
-    CrowPlan("weekly", "Weekly Pass", "$4.99", "week"),
-    CrowPlan("monthly", "Monthly Pass", "$8.88", "month", tag = "POPULAR"),
-    CrowPlan("yearly", "Yearly Pass", "$44.99", "year", tag = "BEST VALUE", tagIsGold = true)
-)
-
-// ============================================================================
-// Main Screen
-// ============================================================================
 
 @Composable
 fun CorvusPaywallScreen(
+    totalNodes: Int = 0,
+    totalCountries: Int = 0,
     onClose: () -> Unit = {},
     onUnlock: (planId: String) -> Unit = {}
 ) {
+    BackHandler { onClose() }
+
     var selectedPlanId by remember { mutableStateOf("yearly") }
+    val scrollState = rememberScrollState()
+
+    val countriesFormat = stringResource(R.string.countries_count)
+    val nodesFormat = stringResource(R.string.nodes_count)
+    val defaultCountries = stringResource(R.string.countries_count, 35)
+    val defaultNodes = stringResource(R.string.nodes_count, 150)
+
+    val liveNodes = if (totalNodes > 0) String.format(nodesFormat, totalNodes) else defaultNodes
+    val liveCountries = if (totalCountries > 0) String.format(countriesFormat, totalCountries) else defaultCountries
+
+    val yearlyTitle = stringResource(R.string.yearly_pass)
+    val monthlyTitle = stringResource(R.string.monthly_pass)
+    val weeklyTitle = stringResource(R.string.weekly_pass)
+    val bestValueText = stringResource(R.string.best_value_badge)
+    val popularText = stringResource(R.string.popular_badge)
+
+    val yearlyPeriod = stringResource(R.string.yearly_period_info)
+    val monthlyPeriod = stringResource(R.string.monthly_period_info)
+    val weeklyPeriod = stringResource(R.string.weekly_period_info)
+
+    val paywallPlans = remember(yearlyTitle, monthlyTitle, weeklyTitle, bestValueText, popularText, yearlyPeriod, monthlyPeriod, weeklyPeriod) {
+        listOf(
+            PaywallPlan("yearly", yearlyTitle, "$49.99", yearlyPeriod, badge = bestValueText, isBestValue = true),
+            PaywallPlan("monthly", monthlyTitle, "$9.99", monthlyPeriod, badge = popularText),
+            PaywallPlan("weekly", weeklyTitle, "$4.99", weeklyPeriod)
+        )
+    }
+
+    val speedLabel = stringResource(R.string.feature_speed)
+    val standardLabel = stringResource(R.string.standard_label)
+    val ultraFastLabel = stringResource(R.string.corvus_ultra_fast)
+    val locationsLabel = stringResource(R.string.feature_locations)
+    val limitedLabel = stringResource(R.string.limited_label)
+    val globalServersLabel = stringResource(R.string.feature_global_servers)
+    val freeNodesLabel = stringResource(R.string.free_nodes_label)
+    val noAdsLabel = stringResource(R.string.feature_no_ads)
+    val dedicatedLinesLabel = stringResource(R.string.feature_dedicated_lines)
+    val prioritySupportLabel = stringResource(R.string.feature_priority_support)
+
+    val privileges = remember(liveNodes, liveCountries, speedLabel, locationsLabel, globalServersLabel, noAdsLabel, dedicatedLinesLabel, prioritySupportLabel) {
+        listOf(
+            PrivilegesRow(speedLabel, standardLabel, ultraFastLabel),
+            PrivilegesRow(locationsLabel, limitedLabel, liveCountries),
+            PrivilegesRow(globalServersLabel, freeNodesLabel, liveNodes),
+            PrivilegesRow(noAdsLabel, "", "", isCheckmark = true, isFreeCheckmark = false, isPremiumCheckmark = true),
+            PrivilegesRow(dedicatedLinesLabel, "", "", isCheckmark = true, isFreeCheckmark = false, isPremiumCheckmark = true),
+            PrivilegesRow(prioritySupportLabel, "", "", isCheckmark = true, isFreeCheckmark = false, isPremiumCheckmark = true)
+        )
+    }
 
     Scaffold(
-        containerColor = CrowBlack
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(CrowBlack),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            item { TopBar(onClose = onClose) }
-            item { HeroSection() }
-            item { FeatherDivider() }
-            item { PerksCard() }
-            item { PlansSection(selectedPlanId = selectedPlanId, onSelect = { selectedPlanId = it }) }
-            item {
-                CtaSection(
-                    onUnlock = { onUnlock(selectedPlanId) }
-                )
-            }
-        }
-    }
-}
-
-// ============================================================================
-// Top Bar
-// ============================================================================
-
-@Composable
-private fun TopBar(onClose: () -> Unit) {
-    Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(CrowSurface)
-                .border(1.dp, CrowBorder, CircleShape)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = "Close",
-                tint = CrowMuted,
-                modifier = Modifier.size(16.dp)
-            )
-        }
-
-        Text(
-            text = "CORVUS PRO",
-            color = CrowText,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
-            letterSpacing = 3.sp
-        )
-
-        Spacer(modifier = Modifier.size(34.dp))
-    }
-}
-
-// ============================================================================
-// Hero — Raven Eye Badge
-// ============================================================================
-
-@Composable
-private fun HeroSection() {
-    val infiniteTransition = rememberInfiniteTransition(label = "eyeGlow")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.75f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowAlpha"
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(26.dp))
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(CrowAccentGlow.copy(alpha = 0.28f), CrowSurface),
-                    center = Offset(0.5f, 0f),
-                    radius = 700f
-                )
-            )
-            .border(1.dp, CrowBorder, RoundedCornerShape(26.dp))
-            .padding(vertical = 34.dp, horizontal = 22.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Glowing eye badge
-        Box(
-            modifier = Modifier
-                .size(76.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(CrowCore, CrowBlack),
-                        center = Offset(0.35f, 0.3f)
-                    )
-                )
-                .border(1.dp, CrowAccent.copy(alpha = glowAlpha), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
+            .fillMaxSize()
+            .statusBarsPadding(),
+        containerColor = CrowBlack,
+        topBar = {
             Box(
                 modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
+                    .fillMaxWidth()
                     .background(CrowBlack)
-                    .border(1.dp, CrowGold, CircleShape),
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
+            ) {
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(id = R.drawable.ic_custom_back),
+                        contentDescription = "Back",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Text(
+                    text = stringResource(R.string.vip_privileges),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = CrowText
+                    ),
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(CrowBlack)
+                .padding(innerPadding)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Hero section with the purple raven character
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(CrowSurface)
+                    .border(1.dp, CrowBorder, RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(9.dp)
-                        .clip(CircleShape)
-                        .background(CrowAccent)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Text(
-            text = "Unleash Full Raven Power",
-            color = CrowText,
-            fontWeight = FontWeight.Bold,
-            fontSize = 23.sp,
-            textAlign = TextAlign.Center,
-            lineHeight = 30.sp
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Text(
-            text = "Unbound speed, absolute freedom, and protection watched over by the raven's eye.",
-            color = CrowMuted,
-            fontSize = 13.5.sp,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
-        )
-    }
-}
-
-// ============================================================================
-// Feather Divider
-// ============================================================================
-
-@Composable
-private fun FeatherDivider() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 26.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        HorizontalLine(modifier = Modifier.weight(1f))
-        Spacer(modifier = Modifier.width(10.dp))
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(CrowMuted.copy(alpha = 0.6f))
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        HorizontalLine(modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun HorizontalLine(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .height(1.dp)
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(Color.Transparent, CrowBorder, Color.Transparent)
-                )
-            )
-    )
-}
-
-// ============================================================================
-// Perks Card
-// ============================================================================
-
-@Composable
-private fun PerksCard() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(CrowSurface)
-            .border(1.dp, CrowBorder, RoundedCornerShape(22.dp))
-    ) {
-        perks.forEachIndexed { index, perk ->
-            PerkRow(perk)
-            if (index != perks.lastIndex) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(CrowBorder)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PerkRow(perk: CrowPerk) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 15.dp),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(11.dp))
-                .background(CrowCore)
-                .border(1.dp, CrowBorder, RoundedCornerShape(11.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = perk.icon,
-                contentDescription = perk.title,
-                tint = CrowAccent,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-        Column {
-            Text(
-                text = perk.title,
-                color = CrowText,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.5.sp
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = perk.description,
-                color = CrowMuted,
-                fontSize = 12.sp,
-                lineHeight = 16.sp
-            )
-        }
-    }
-}
-
-// ============================================================================
-// Plans Section
-// ============================================================================
-
-@Composable
-private fun PlansSection(
-    selectedPlanId: String,
-    onSelect: (String) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        plans.forEach { plan ->
-            PlanRow(
-                plan = plan,
-                selected = plan.id == selectedPlanId,
-                onClick = { onSelect(plan.id) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun PlanRow(
-    plan: CrowPlan,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val borderColor = if (selected) CrowAccent else CrowBorder
-    val backgroundBrush = if (selected) {
-        Brush.linearGradient(
-            colors = listOf(CrowAccentGlow.copy(alpha = 0.22f), CrowAccentGlow.copy(alpha = 0.05f))
-        )
-    } else {
-        Brush.linearGradient(colors = listOf(CrowSurface, CrowSurface))
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(backgroundBrush)
-            .border(
-                width = if (selected) 1.4.dp else 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 15.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            RadioIndicator(selected = selected)
-            Column {
-                Text(
-                    text = plan.name,
-                    color = CrowText,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.5.sp
-                )
-                plan.tag?.let { tag ->
-                    Text(
-                        text = tag,
-                        color = if (plan.tagIsGold) CrowGold else CrowAccentText,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 10.sp,
-                        letterSpacing = 0.4.sp
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.vip_membership),
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = CrowText
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.unlock_sovereign_features),
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = CrowMuted,
+                                fontSize = 12.5.sp
+                            )
+                        )
+                    }
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(id = R.drawable.raven_paywall_hero),
+                        contentDescription = "VIP Raven",
+                        modifier = Modifier
+                            .size(110.dp)
+                            .clip(CircleShape),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
                     )
                 }
             }
-        }
 
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                text = plan.price,
-                color = CrowText,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 15.sp
-            )
-            Spacer(modifier = Modifier.width(3.dp))
-            Text(
-                text = "/ ${plan.period}",
-                color = CrowMuted,
-                fontSize = 11.sp
-            )
-        }
-    }
-}
+            Spacer(modifier = Modifier.height(18.dp))
 
-@Composable
-private fun RadioIndicator(selected: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(20.dp)
-            .clip(CircleShape)
-            .background(if (selected) CrowAccent else Color.Transparent)
-            .border(
-                width = 1.5.dp,
-                color = if (selected) CrowAccent else CrowText.copy(alpha = 0.25f),
-                shape = CircleShape
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (selected) {
-            Box(
+            // 1. Comparison Table Card
+            PrivilegesTableCard(privileges)
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 2. Plans Section (Yearly, Monthly, Weekly)
+            paywallPlans.forEach { plan ->
+                val isSelected = plan.id == selectedPlanId
+                PlanCard(
+                    plan = plan,
+                    isSelected = isSelected,
+                    onClick = { selectedPlanId = plan.id }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3. Action Button
+            Button(
+                onClick = { onUnlock(selectedPlanId) },
                 modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(CrowBlack)
-            )
-        }
-    }
-}
-
-// ============================================================================
-// CTA Button
-// ============================================================================
-
-@Composable
-private fun CtaSection(onUnlock: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(CrowAccentText, CrowAccent, CrowAccentBorder)
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(26.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = CrowAccent,
+                    contentColor = CrowBlack
+                )
+            ) {
+                Text(
+                    text = stringResource(R.string.unlock_vip),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
                     )
                 )
-                .clickable { onUnlock() }
-                .padding(vertical = 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 4. Restore Purchase Link Only
             Text(
-                text = "UNLOCK CORVUS PRO",
-                color = CrowBlack,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                letterSpacing = 1.2.sp
+                text = stringResource(R.string.restore_purchase),
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = CrowAccentText,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
+                ),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { /* Handle Restore */ }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 5. Clean 1-Line Disclaimer Text
+            Text(
+                text = stringResource(R.string.auto_renewable_disclaimer),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = CrowMuted.copy(alpha = 0.6f),
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center
+                ),
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Cancel anytime — auto-renews unless cancelled",
-            color = CrowMuted,
-            fontSize = 10.5.sp,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
-// ============================================================================
-// Preview
-// ============================================================================
-
-@Preview(showBackground = true, backgroundColor = 0xFF0A0A0D)
 @Composable
-private fun CorvusPaywallPreview() {
-    CorvusVPNTheme {
-        CorvusPaywallScreen()
+private fun PrivilegesTableCard(privileges: List<PrivilegesRow>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = CrowSurface,
+        border = BorderStroke(1.dp, CrowBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 14.dp, horizontal = 16.dp)
+        ) {
+            // Header Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(modifier = Modifier.weight(1.3f))
+                Text(
+                    text = stringResource(R.string.free_tier),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = CrowMuted,
+                        textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = stringResource(R.string.vip_tier),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = CrowAccent,
+                        textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier.weight(1.2f)
+                )
+            }
+
+            HorizontalDivider(color = CrowBorder, thickness = 0.5.dp)
+
+            // Content Rows
+            privileges.forEachIndexed { index, item ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = item.feature,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            color = CrowText,
+                            fontSize = 13.5.sp
+                        ),
+                        modifier = Modifier.weight(1.3f)
+                    )
+
+                    // Free Column
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (item.isCheckmark) {
+                            if (item.isFreeCheckmark) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = CrowAccent, modifier = Modifier.size(18.dp))
+                            } else {
+                                Icon(Icons.Default.Close, contentDescription = null, tint = CrowMuted.copy(alpha = 0.4f), modifier = Modifier.size(18.dp))
+                            }
+                        } else {
+                            Text(
+                                text = item.freeValue,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = CrowMuted,
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            )
+                        }
+                    }
+
+                    // Premium Column
+                    Box(
+                        modifier = Modifier.weight(1.2f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (item.isCheckmark) {
+                            if (item.isPremiumCheckmark) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = CrowAccent, modifier = Modifier.size(19.dp))
+                            } else {
+                                Icon(Icons.Default.Close, contentDescription = null, tint = CrowMuted.copy(alpha = 0.4f), modifier = Modifier.size(18.dp))
+                            }
+                        } else {
+                            Text(
+                                text = item.premiumValue,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = CrowAccent,
+                                    fontSize = 12.5.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            )
+                        }
+                    }
+                }
+
+                if (index < privileges.lastIndex) {
+                    HorizontalDivider(color = CrowBorder, thickness = 0.5.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlanCard(
+    plan: PaywallPlan,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) CrowAccent else CrowBorder,
+        animationSpec = tween(250),
+        label = "planBorder"
+    )
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = CrowSurface,
+        border = BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = plan.title,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = if (isSelected) CrowAccentText else CrowText
+                        )
+                    )
+
+                    if (plan.badge != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (plan.isBestValue) CrowGold.copy(alpha = 0.2f) else CrowAccent.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, if (plan.isBestValue) CrowGold else CrowAccent)
+                        ) {
+                            Text(
+                                text = plan.badge,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = if (plan.isBestValue) CrowGold else CrowAccentText,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp
+                                ),
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = plan.periodInfo,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = CrowMuted,
+                        fontSize = 12.5.sp
+                    )
+                )
+            }
+
+            Text(
+                text = plan.price,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 17.sp,
+                    color = CrowText
+                )
+            )
+        }
     }
 }

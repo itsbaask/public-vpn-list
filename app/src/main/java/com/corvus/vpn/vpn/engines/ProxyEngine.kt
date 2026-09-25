@@ -18,7 +18,7 @@ class ProxyEngine @Inject constructor(
     private val _legacyEngineState = MutableStateFlow(ConnectionStatus.LEVEL_NOTCONNECTED)
     override val legacyEngineState: StateFlow<ConnectionStatus> = _legacyEngineState.asStateFlow()
 
-    override fun start(config: String, serverName: String) {
+    override fun start(config: String, serverName: String, activityContext: Context?) {
         Log.d("ProxyEngine", "Starting proxy connection for $serverName with URI/config: $config")
         _legacyEngineState.value = ConnectionStatus.LEVEL_START
         try {

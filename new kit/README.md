@@ -1,0 +1,123 @@
+[![PIA logo][pia-image]][pia-url]
+
+# Private Internet Access
+Private Internet Access is the world's leading consumer VPN service. At Private Internet Access we believe in unfettered access for all, and as a firm supporter of the open source ecosystem we have made the decision to open source our VPN clients. For more information about the PIA service, please visit our website [privateinternetaccess.com](https://privateinternetaccess.com).
+
+# Android Application
+A re-write of the PIA Android application. Written in Kotlin, adhering to the Clean Code principles.
+
+## Installation
+
+### Requirements
+ - Git (latest)
+ - Android Studio (Stable channel)
+ - Gradle (latest)
+ - ADB installed
+ - NDK (latest)
+ - Android 7+
+
+
+Please use these instructions to install Git on your computer if it is not already installed: [Installing Git](https://gist.github.com/derhuerst/1b15ff4652a867391f03)
+
+Please use these instructions to install and download Android Studio on your computer if it is not already installed: [Android Studio Download Link](https://developer.android.com/studio/index.html)
+
+#### Download Codebase
+Using the terminal:
+
+`git clone https://github.com/xvpn/kp_vpn_android *folder-name*`
+
+Type in what folder you want to put in without the ** or use a graphical interface like Android Studio's to clone the repo.
+
+This will pull the main repository as well as the required dependencies.
+
+
+#### Building
+
+>Once the project is cloned, the project will build once opened in Android Studio. This will require building the binaries for the underlying modules and configurations. This can take a while for certain computers and is only done on complete clean and rebuilds. You can see progress in the gradle console. Once completed, the app will be able to be run on a device connected to the computer or an emulator running on your computer.
+
+## Documentation
+
+#### Architecture
+Code structure via packages:
+
+* `app` - the main application module. It acts as a proxy to all features implemented within the `features` module.
+* `buildSrc` - holds a list of dependencies used within the app.
+* `capabilities` - holds modules for various app capabilities.
+  * `csi` - contains customer support capabilities, responsible for collecting and sending logs.
+  * `location` - checks for location permissions.
+  * `networkmanagement` - provides the ability to set, change and remove network rules.
+  * `notifications` 
+  * `shareevents` - used to record connection status and speeds.
+  * `snooze` - contains snooze-related code.
+  * `ui` - defines shared UI elements, themes, fonts, styling, etc. It also contains all string resources.
+* `core` - contains core functionality modules.
+  * `httpclient`
+  * `localprefs` - a module containing more functionality specific modules. It holds the shared preferences and the respective data objects.
+  * `obfuscator`
+  * `payments` - implements payments flow for both Google and Amazon. This is defined by a `product` flavor within the `build.gradle` file.
+  * `portforwarding`
+  * `regions`
+  * `router` - our own implementation of navigation.
+  * `utils`
+  * `vpnconnect` - logic for establishing a VPN connection.
+  * `vpnlauncher`
+* `features` - contains modules for single features, such as region selection, connection, signup, etc.
+
+#### Coding Style
+
+#### Significant Classes and files
+
+### Contributing
+
+By contributing to this project you are agreeing to the terms stated in the Contributor License Agreement (CLA) [here](/CLA.rst).
+
+For more details please see [CONTRIBUTING](/CONTRIBUTING.md).
+
+Issues and Pull Requests should use these templates: [ISSUE](/.github/ISSUE_TEMPLATE.md) and [PULL REQUEST](/.github/PULL_REQUEST_TEMPLATE.md).
+
+### Testing
+
+In order to run the instrumented test we need to set environment variables containing valid credentials.
+They need to have the format `PIA_VALID_USERNAME`, `PIA_VALID_PASSWORD` and `PIA_VALID_DIP_TOKEN`.
+
+### Builds
+
+To trigger a build for testing along with all other builds from the latest main, push a branch with branch name starting with `rc`.
+
+### Dependency Verification
+
+`gradle/verification-metadata.xml` pins every resolved dependency by SHA-256 content hash, so a tampered or substituted artifact fails the build before any code executes. CI regenerates this file and fails if it diverges from the committed version, but only runs that check when a push/PR touches a dependency-related file (any `build.gradle(.kts)`, `settings.gradle(.kts)`, `gradle.properties`, `libs.versions.toml`, `gradle/verification-metadata.xml`, or `gradle/wrapper/gradle-wrapper.properties`) — see `detect-dependency-changes` in `.github/workflows/assembleDebug.yml`.
+
+Whenever you bump a dependency version (e.g. `kape-platform-sdk-vpn-pia`, or any of the KAPE/JitPack libraries), regenerate it locally and commit the result. Include the tasks CI actually runs, not just `help` — some tools (e.g. ktlint) resolve their own tool classpath lazily, only when their task executes, so `help` alone won't capture it:
+
+```bash
+./gradlew --write-verification-metadata sha256 help ktlintCheck testGoogleDebugUnitTest testDebugUnitTest assembleGoogleDebug
+```
+
+Review the diff in `gradle/verification-metadata.xml` before committing to confirm only the expected components changed, then commit it alongside your dependency bump.
+
+If a build fails with `Dependency verification failed`, `--write-verification-metadata` often won't fix it even when you add the failing task to the command above — some files (a BOM's own `.pom`, or a `*-parent.pom` pulled in via Maven's parent-POM inheritance walk) are only fetched by Gradle's normal verified resolution path, not by write-metadata mode, no matter which task you run. In that case, add the missing hash by hand:
+
+1. Note the exact `<group>:<name>:<version>` and filename (`.pom`/`.module`/classified `.jar`) from the error.
+2. Get the file: check `~/.gradle/caches/modules-2/files-2.1/<group>/<name>/<version>/` first (Gradle may have already fetched it for a different resolution path); otherwise download it from `https://repo1.maven.org/maven2/<group-as-path>/<name>/<version>/<filename>` (Google-hosted artifacts, e.g. `com.android.tools.build`, live at `https://dl.google.com/android/maven2/...` instead — check for a `.sha256` sidecar at the same URL to cross-verify).
+3. Hash it (`shasum -a 256 <file>`) and add the `<component>`/`<artifact>`/`<sha256>` entry by hand next to its sibling versions in `gradle/verification-metadata.xml`.
+
+Note: this repo's metadata has so far only ever been regenerated on macOS, while CI runs on Linux. A handful of AGP build tools (currently just `aapt2`) publish a separate, differently-hashed jar per OS (`-osx`, `-linux`, `-windows` classifiers) — regenerating locally only ever captures the macOS one, so the Linux one always needs the manual step above. If you hit `Dependency verification failed` naming a `-linux.jar`, that's this case.
+
+This is expected to happen occasionally as new tasks/flavors get exercised for the first time — it's not a sign the approach is broken.
+
+### License
+
+This project is licensed under the [MIT (Expat) license](https://choosealicense.com/licenses/mit/), which can be found [here](/LICENSE).
+
+### Acknowledgements
+
+This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit. (https://www.openssl.org/)
+
+© 2002-2017 OpenVPN Inc. - OpenVPN is a registered trademark of OpenVPN Inc.
+
+
+<!-- Markdown link & img dfn's -->
+[pia-image]: https://assets-cms.privateinternetaccess.com/img/frontend/pia_menu_logo_light.svg
+[pia-url]: https://www.privateinternetaccess.com/
+[wiki]: https://en.wikipedia.org/wiki/Private_Internet_Access

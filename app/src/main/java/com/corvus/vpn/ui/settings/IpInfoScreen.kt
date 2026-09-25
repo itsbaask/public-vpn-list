@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.corvus.vpn.R
 import com.corvus.vpn.data.IpInfo
 import com.corvus.vpn.ui.components.CorvusCard
+import com.corvus.vpn.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,22 +36,26 @@ fun IpInfoScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = CrowBlack,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.my_ip), fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = { Text(stringResource(R.string.my_ip), fontWeight = FontWeight.Bold, fontSize = 20.sp, color = CrowText) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_custom_back),
+                            contentDescription = "Back",
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.fetchIpInfo() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = CrowText)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = CrowBlack
                 )
             )
         }
@@ -58,12 +63,13 @@ fun IpInfoScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(CrowBlack)
                 .padding(paddingValues)
                 .padding(horizontal = 20.dp)
         ) {
             when (val state = uiState) {
                 is IpInfoUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.primary)
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = CrowAccent)
                 }
                 is IpInfoUiState.Success -> {
                     IpDetailsList(state.ipInfo)
@@ -89,14 +95,14 @@ fun IpDetailsList(ipInfo: IpInfo) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+            color = CrowSurface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, CrowAccentBorder)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
                     text = stringResource(R.string.ip_address),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = CrowAccentText,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -104,7 +110,7 @@ fun IpDetailsList(ipInfo: IpInfo) {
                     text = ipInfo.query,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = CrowText
                 )
             }
         }
@@ -114,13 +120,13 @@ fun IpDetailsList(ipInfo: IpInfo) {
 
         CorvusCard {
             InfoRow(Icons.Default.Public, stringResource(R.string.location), "${ipInfo.city}, ${ipInfo.country}")
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), thickness = 0.5.dp, color = CrowBorder)
             InfoRow(Icons.Default.Business, stringResource(R.string.isp), ipInfo.isp ?: "Unknown")
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), thickness = 0.5.dp, color = CrowBorder)
             InfoRow(Icons.Default.Domain, stringResource(R.string.organization), ipInfo.org ?: "Unknown")
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), thickness = 0.5.dp, color = CrowBorder)
             InfoRow(Icons.Default.Schedule, stringResource(R.string.timezone), ipInfo.timezone ?: "Unknown")
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), thickness = 0.5.dp, color = CrowBorder)
             InfoRow(Icons.Default.PinDrop, stringResource(R.string.zip_code), ipInfo.zip ?: "Unknown")
         }
         
@@ -136,7 +142,7 @@ private fun SectionTitle(title: String) {
             letterSpacing = 1.sp,
             fontSize = 12.sp
         ),
-        color = MaterialTheme.colorScheme.primary,
+        color = CrowAccent,
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
     )
@@ -154,7 +160,7 @@ fun InfoRow(icon: ImageVector, label: String, value: String) {
             modifier = Modifier
                 .size(36.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    color = CrowAccentBorder,
                     shape = androidx.compose.foundation.shape.CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -162,7 +168,7 @@ fun InfoRow(icon: ImageVector, label: String, value: String) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = CrowAccentText,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -171,13 +177,13 @@ fun InfoRow(icon: ImageVector, label: String, value: String) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary
+                color = CrowMuted
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = CrowText
             )
         }
     }
@@ -190,13 +196,19 @@ fun ErrorState(message: String, onRetry: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
+        Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(64.dp), tint = CrowMuted)
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = stringResource(R.string.failed_to_load_ip), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(text = message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+        Text(text = stringResource(R.string.failed_to_load_ip), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = CrowText)
+        Text(text = message, style = MaterialTheme.typography.bodySmall, color = CrowMuted)
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.refresh))
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = CrowAccent,
+                contentColor = CrowBlack
+            )
+        ) {
+            Text(stringResource(R.string.refresh), fontWeight = FontWeight.Bold)
         }
     }
 }

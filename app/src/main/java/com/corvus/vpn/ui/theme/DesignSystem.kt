@@ -29,44 +29,47 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
 // ============================================================================
-// 1. Corvus Palette — Minimal & Professional
+// 1. Corvus Palette — Minimal & Professional (Unified with Crow Theme)
 // ============================================================================
 
-val ColorBlack          = Color(0xFF000000) // Pure Black 100%
-val ColorSurface        = Color(0xFF111113) // Surface Card
-val ColorSurfaceVariant = Color(0xFF1A1A1D) // Secondary Surface
-val ColorBorder         = Color(0xFF26262A) // Border
+val ColorBlack          = CrowBlack
+val ColorSurface        = CrowSurface
+val ColorSurfaceVariant = CrowCore
+val ColorBorder         = CrowBorder
 
-val ColorAccent         = Color(0xFF3F4657) // Slate Navy Accent
-val ColorAccentMuted    = Color(0xFF2A2E38) // Deep Accent
+val ColorAccent         = CrowAccent
+val ColorAccentMuted    = CrowAccentBorder
 
-val ColorTextPrimary    = Color(0xFFF5F5F5) // Primary Text White
-val ColorTextSecondary  = Color(0xFF8E8E93) // Secondary Text Gray
-val ColorTextTertiary   = Color(0xFF525256) // Faded Gray
+val ColorTextPrimary    = CrowText
+val ColorTextSecondary  = CrowMuted
+val ColorTextTertiary   = CrowFaint
 
 val ColorSuccess        = Color(0xFF4CAF7D) // Soft Emerald Connected
-val ColorDanger         = Color(0xFFD9534F) // Soft Red Danger
-val ColorPending        = Color(0xFFB08D57) // Soft Amber Pending
+val ColorDanger         = CrowBlood
+val ColorPending        = CrowGold
 
 // ============================================================================
 // 2. Color Scheme & Theme Provider
 // ============================================================================
 private val CorvusColorScheme = darkColorScheme(
-    primary = ColorAccent,
-    onPrimary = ColorTextPrimary,
-    primaryContainer = ColorAccentMuted,
-    onPrimaryContainer = ColorTextPrimary,
-    secondary = ColorTextSecondary,
-    onSecondary = ColorTextPrimary,
-    background = ColorBlack,
-    onBackground = ColorTextPrimary,
-    surface = ColorSurface,
-    onSurface = ColorTextPrimary,
-    surfaceVariant = ColorSurfaceVariant,
-    onSurfaceVariant = ColorTextSecondary,
-    outline = ColorBorder,
-    outlineVariant = ColorBorder,
-    error = ColorDanger
+    primary = CrowAccent,
+    onPrimary = CrowBlack,
+    primaryContainer = CrowAccentBorder,
+    onPrimaryContainer = CrowAccentText,
+    secondary = CrowMuted,
+    onSecondary = CrowText,
+    tertiary = CrowGold,
+    onTertiary = CrowBlack,
+    background = CrowBlack,
+    onBackground = CrowText,
+    surface = CrowSurface,
+    onSurface = CrowText,
+    surfaceVariant = CrowCore,
+    onSurfaceVariant = CrowMuted,
+    outline = CrowBorder,
+    outlineVariant = CrowBorder,
+    error = CrowBlood,
+    onError = CrowText
 )
 
 @Composable

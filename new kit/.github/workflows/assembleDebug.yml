@@ -1,0 +1,405 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: write    # required for cache write
+
+jobs:
+  ktlintCheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup JAVA 21
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+        with:
+          cache-read-only: false   # always write cache, not just on main
+
+      - name: Run Ktlint Check
+        run: ./gradlew ktlintCheck
+
+  detect-dependency-changes:
+    name: Detect dependency-related changes
+    runs-on: ubuntu-latest
+    outputs:
+      dependencies-changed: ${{ steps.filter.outputs.changed }}
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Check for dependency-related file changes
+        id: filter
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.event.after }}"
+          fi
+
+          # "before" is all-zeros on the first push of a new branch; fall back to the parent commit.
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA=$(git rev-parse "$HEAD_SHA~1" 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$BASE_SHA" ]; then
+            echo "No usable base commit found - running dependency verification to be safe."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          if echo "$CHANGED_FILES" | grep -E -q '(^|/)(build\.gradle(\.kts)?|settings\.gradle(\.kts)?|gradle\.properties|libs\.versions\.toml)$|^gradle/verification-metadata\.xml$|^gradle/wrapper/gradle-wrapper\.properties$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  verifyDependencyMetadata:
+    name: Verify dependency verification metadata is up to date
+    needs: [detect-dependency-changes]
+    if: needs.detect-dependency-changes.outputs.dependencies-changed == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_USERNAME: ${{ secrets.USERNAME_GITHUB }}
+      GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup JAVA 21
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+        with:
+          cache-read-only: false
+
+      # Split into multiple steps (rather than one Gradle invocation covering every task) so each
+      # JVM process fully exits and frees its heap before the next one starts. Running help +
+      # ktlint + tests + five release/bundle builds (with R8 minification) in a single --no-daemon
+      # process previously exhausted the runner's memory.
+      - name: Snapshot committed metadata
+        run: |
+          cp gradle/verification-metadata.xml /tmp/verification-metadata.committed.xml
+          echo "COMMITTED_HASH=$(sha256sum gradle/verification-metadata.xml | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: Regenerate metadata - lint and unit tests
+        run: ./gradlew --write-verification-metadata sha256 help ktlintCheck testGoogleDebugUnitTest testDebugUnitTest --no-daemon
+
+      - name: Regenerate metadata - debug assemble
+        run: ./gradlew --write-verification-metadata sha256 assembleGoogleDebug --no-daemon
+
+      # Release variants run R8/D8 dexing on a full, non-incremental build (no Gradle build cache
+      # hit here since --write-verification-metadata disables it), which is heap-hungry — each
+      # flavor gets its own step and a raised heap, rather than pairing flavors in one JVM.
+      - name: Regenerate metadata - amazon release
+        run: ./gradlew --write-verification-metadata sha256 assembleAmazonRelease --no-daemon -Dorg.gradle.jvmargs=-Xmx4096m
+
+      - name: Regenerate metadata - meta release
+        run: ./gradlew --write-verification-metadata sha256 assembleMetaRelease --no-daemon -Dorg.gradle.jvmargs=-Xmx4096m
+
+      - name: Regenerate metadata - noinapp release
+        run: ./gradlew --write-verification-metadata sha256 assembleNoinappRelease --no-daemon -Dorg.gradle.jvmargs=-Xmx4096m
+
+      - name: Regenerate metadata - fdroid release
+        run: ./gradlew --write-verification-metadata sha256 assembleFdroidRelease --no-daemon -Dorg.gradle.jvmargs=-Xmx4096m
+
+      - name: Regenerate metadata - google bundle
+        run: ./gradlew --write-verification-metadata sha256 bundleGoogleRelease --no-daemon -Dorg.gradle.jvmargs=-Xmx4096m
+
+      - name: Compare against committed metadata
+        run: |
+          REGENERATED_HASH=$(sha256sum gradle/verification-metadata.xml | cut -d' ' -f1)
+          if [ "$COMMITTED_HASH" != "$REGENERATED_HASH" ]; then
+            echo "::error::gradle/verification-metadata.xml is out of date (a task's dependency classpath resolved artifacts not in the committed metadata)."
+            echo "Diff between committed and regenerated metadata:"
+            diff /tmp/verification-metadata.committed.xml gradle/verification-metadata.xml || true
+            echo "See README.md's Dependency Verification section for how to regenerate and, if needed, manually add a missing hash."
+            exit 1
+          fi
+
+  unit-tests:
+    needs: [ktlintCheck, verifyDependencyMetadata]
+    if: |
+      always() &&
+      needs.ktlintCheck.result == 'success' &&
+      (needs.verifyDependencyMetadata.result == 'success' || needs.verifyDependencyMetadata.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup JAVA 21
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+
+      - name: Run Debug and GoogleDebug Unit Tests
+        env:
+          GITHUB_USERNAME: ${{ secrets.USERNAME_GITHUB }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
+        run: ./gradlew testGoogleDebugUnitTest testDebugUnitTest --parallel
+
+  build-apk:
+    name: Build PR APK
+    needs: [ktlintCheck, verifyDependencyMetadata]
+    if: |
+      always() &&
+      github.event_name == 'pull_request' &&
+      needs.ktlintCheck.result == 'success' &&
+      (needs.verifyDependencyMetadata.result == 'success' || needs.verifyDependencyMetadata.result == 'skipped')
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Generate unique build ID
+        id: build_id
+        run: |
+          # Slugify the branch name: lowercase, replace non-alphanumeric with hyphens, trim trailing hyphens
+          BRANCH_SLUG=$(echo "${{ github.head_ref }}" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[^a-z0-9]/-/g' \
+            | sed 's/-\+/-/g' \
+            | sed 's/^-\|-$//g' \
+            | cut -c1-40)
+
+          BUILD_ID="pr-${{ github.event.pull_request.number }}-${BRANCH_SLUG}"
+          echo "build_id=${BUILD_ID}" >> "$GITHUB_OUTPUT"
+          echo "Build ID: ${BUILD_ID}"
+
+      - name: Setup JAVA 21
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+
+      - name: Build debug APK
+        env:
+          GITHUB_USERNAME: ${{ secrets.USERNAME_GITHUB }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
+        run: ./gradlew assembleGoogleDebug --no-daemon
+
+      - name: Rename APK with build ID
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/google/debug -name "*.apk" | head -1)
+          APK_DIR=$(dirname "$APK_PATH")
+          mv "$APK_PATH" "${APK_DIR}/${{ steps.build_id.outputs.build_id }}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ${{ steps.build_id.outputs.build_id }}
+          path: app/build/outputs/apk/google/debug/${{ steps.build_id.outputs.build_id }}.apk
+          retention-days: 7
+
+  build-e2e-apk:
+    name: Build E2E test APKs
+    needs: [ktlintCheck, verifyDependencyMetadata]
+    if: |
+      always() &&
+      needs.ktlintCheck.result == 'success' &&
+      (needs.verifyDependencyMetadata.result == 'success' || needs.verifyDependencyMetadata.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup JAVA 21
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+        with:
+          cache-read-only: false   # write so the e2e-testing matrix jobs can read a warm build cache
+
+      # All 12 e2e-testing matrix legs build this exact same noinapp debug + androidTest
+      # variant (they only differ by which test class they filter to). Building it once here
+      # with the Gradle build cache enabled means the matrix jobs hit cache on compile/dex/
+      # resource tasks instead of redundantly rebuilding the app from scratch 12 times in parallel.
+      # Scoped to :app: (matching what :app:connectedNoinappDebugAndroidTest itself builds) so we
+      # don't also build every library module's own standalone androidTest variant, which nothing
+      # in this workflow otherwise exercises.
+      - name: Build E2E APKs
+        env:
+          GITHUB_USERNAME: ${{ secrets.USERNAME_GITHUB }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
+        run: ./gradlew :app:assembleNoinappDebug :app:assembleNoinappDebugAndroidTest
+
+  # Populates the AVD snapshot cache with no secrets in the job environment at all (no
+  # GITHUB_TOKEN, no PIA_VALID_*), so a compromised reactivecircus/android-emulator-runner
+  # invocation while creating the snapshot has nothing to exfiltrate. Runs once, ahead of the
+  # 12-leg matrix below, instead of racing a cache-miss snapshot build inside every credentialed
+  # matrix job.
+  warm-avd-cache:
+    name: Warm AVD snapshot cache
+    needs: [ktlintCheck, verifyDependencyMetadata]
+    if: |
+      always() &&
+      needs.ktlintCheck.result == 'success' &&
+      (needs.verifyDependencyMetadata.result == 'success' || needs.verifyDependencyMetadata.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable Hardware Acceleration (Add KVM group perms)
+        run: |
+          sudo modprobe kvm
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Shared across all matrix legs (same api-level/arch/profile) so a snapshot built here
+      # is reused by every job in this and later runs, instead of every leg cold-booting the
+      # emulator from scratch.
+      - name: AVD cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-33-x86_64-pixel_4
+
+      - name: Create AVD and generate snapshot for caching
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 33
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          disk-size: 4G
+          ram-size: 4096M
+          emulator-boot-timeout: 480
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching."
+
+  e2e-testing:
+    name: Run end to end instrumentation tests (${{ matrix.test-class }})
+    needs: [ktlintCheck, verifyDependencyMetadata, build-e2e-apk, warm-avd-cache]
+    if: |
+      always() &&
+      needs.ktlintCheck.result == 'success' &&
+      (needs.verifyDependencyMetadata.result == 'success' || needs.verifyDependencyMetadata.result == 'skipped') &&
+      needs.build-e2e-apk.result == 'success' &&
+      needs.warm-avd-cache.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test-class:
+          - DedicatedIpTests
+          - E2ETests
+          - HelpSettingsTests
+          - LoginTests
+          - LogoutTests
+          - ProtocolTests
+          - QuickConnectTests
+          - QuickSettingsTests
+          - RegionLatencyRefreshTests
+          - SideMenuTests
+          - WireGuardLocationTests
+          - OpenVpnEncryptionTests
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup JAVA 21
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+
+      - name: Enable Hardware Acceleration (Add KVM group perms)
+        run: |
+          sudo modprobe kvm
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Populated by the warm-avd-cache job above, so this should always be a cache hit; kept
+      # here (rather than in warm-avd-cache) because the cache must be restored into each
+      # matrix leg's own runner filesystem.
+      - name: AVD cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-33-x86_64-pixel_4
+
+      # PIA_VALID_* are passed inline to the one command that needs them rather than in this
+      # step's env:, so they aren't exposed to the reactivecircus/android-emulator-runner action
+      # itself (or anything else this step runs) — only to the ./gradlew process.
+      - name: Run end to end instrumentation tests on emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+          GITHUB_USERNAME: ${{ secrets.USERNAME_GITHUB }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
+        with:
+          api-level: 33
+          arch: x86_64
+          profile: pixel_4
+          cores: 2
+          disk-size: 4G
+          ram-size: 4096M
+          emulator-boot-timeout: 480
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          disable-spellchecker: true
+          script: |
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+            PIA_VALID_USERNAME="${{ secrets.PIA_VALID_USERNAME }}" PIA_VALID_PASSWORD="${{ secrets.PIA_VALID_PASSWORD }}" PIA_VALID_DIP_TOKEN="${{ secrets.PIA_VALID_DIP_TOKEN }}" ./gradlew :app:connectedNoinappDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=e2e.${{ matrix.test-class }}
+
+      - name: Upload E2E report
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: e2e-report-${{ matrix.test-class }}
+          path: ${{ github.workspace }}/app/build/reports/androidTests/connected/debug/flavors/noinapp/*
+          overwrite: true

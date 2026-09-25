@@ -33,7 +33,7 @@ class VpnManager @Inject constructor(
         VpnStatus.addByteCountListener(this)
     }
 
-    fun startVpn(server: Server) {
+    fun startVpn(server: Server, activityContext: Context? = null) {
         val serverEntity = serverRepository.getServers().find { it.id == server.id }
             ?: serverRepository.getServers().find { it.name == server.name }
             ?: serverRepository.getServers().firstOrNull()
@@ -53,7 +53,7 @@ class VpnManager @Inject constructor(
             tier = server.tier
         )
 
-        connectionEngine.processCommand(VpnCommand.Connect(entityToConnect))
+        connectionEngine.processCommand(VpnCommand.Connect(entityToConnect), activityContext)
     }
 
     fun stopVpn() {

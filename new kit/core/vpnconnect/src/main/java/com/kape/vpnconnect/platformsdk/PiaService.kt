@@ -1,0 +1,329 @@
+package com.kape.vpnconnect.platformsdk
+
+import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.net.VpnService
+import android.os.Binder
+import android.os.Build
+import android.os.IBinder
+import android.os.PowerManager
+import com.kape.contracts.ConfigInfo
+import com.kape.contracts.ConnectionInfoProvider
+import com.kape.contracts.ConnectionManager
+import com.kape.contracts.KpiDataSource
+import com.kape.contracts.UsageProvider
+import com.kape.data.NOTIFICATION_ID
+import com.kape.localprefs.prefs.ConnectionPrefs
+import com.kape.localprefs.prefs.ConsentPrefs
+import com.kape.localprefs.prefs.SettingsPrefs
+import com.kape.platformsdk.vpn.openvpn.OpenVpnConnectionController
+import com.kape.platformsdk.vpn.service.KapeSessionController
+import com.kape.platformsdk.vpn.service.KapeSystemTunnel
+import com.kape.platformsdk.vpn.service.analytics.DisconnectReason
+import com.kape.platformsdk.vpn.service.models.IpAddress
+import com.kape.platformsdk.vpn.service.models.KapeKillSwitchMode
+import com.kape.platformsdk.vpn.service.models.KapeSplitTunnelAppMode
+import com.kape.platformsdk.vpn.service.models.KapeVPNConnectionStatus
+import com.kape.platformsdk.vpn.wireguard.KapeWireGuardConnectionController
+import com.kape.platformsdk.vpn.wireguard.WireGuardAuthenticator
+import com.kape.portforwarding.domain.PortForwardingUseCase
+import com.kape.settings.data.VpnProtocols
+import com.kape.utils.VpnNotificationManager
+import com.kape.vpnconnect.domain.ConnectionDataSource
+import com.kape.vpnconnect.domain.GetActiveInterfaceDnsUseCase
+import com.kape.vpnconnect.utils.CountryDetector
+import com.kape.vpnconnect.utils.NotificationHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import org.koin.core.annotation.Singleton
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+
+@Singleton
+class PiaService :
+    VpnService(),
+    KoinComponent {
+    private val configInfo: ConfigInfo by inject()
+    private val connectionSource: ConnectionDataSource by inject()
+    private val settingsPrefs: SettingsPrefs by inject()
+    private val connectionPrefs: ConnectionPrefs by inject()
+    private val consentPrefs: ConsentPrefs by inject()
+    private val getActiveInterfaceDnsUseCase: GetActiveInterfaceDnsUseCase by inject()
+    private val vpnNotificationManager: VpnNotificationManager by inject()
+    private val configureIntent: PendingIntent by inject()
+    private val usageProvider: UsageProvider by inject()
+    private val portForwardingUseCase: PortForwardingUseCase by inject()
+    private val connectionManager: ConnectionManager by inject()
+    private val connectionInfoProvider: ConnectionInfoProvider by inject()
+    private val notificationHandler: NotificationHandler by inject()
+    private val countryDetector: CountryDetector by inject()
+    private val kpiDataSource: KpiDataSource by inject()
+    private var sessionController: KapeSessionController? = null
+    private var statusCollectionJob: Job? = null
+
+    // Held only while a session is connecting/connected so the OS doesn't freeze this process
+    // during Doze/App Standby and cause it to miss the OpenVPN ping-restart window. Acquired
+    // with a bounded timeout as a backstop against a missed release path (e.g. a library-reported
+    // failure that never routes through stopSessionController()), and renewed on every
+    // Connecting/Reconnecting transition so a live ping-restart cycle is never cut short.
+    private val wakeLock: PowerManager.WakeLock by lazy {
+        (getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:vpnConnection")
+            // Renewed on every Connecting/Reconnecting transition (not just once per session),
+            // so reference-counted acquire()/release() would require exactly one release() per
+            // renewal. A single release() on Disconnected must always fully release it regardless
+            // of how many renewals preceded it, so acquire()/release() need to re-enter, not stack.
+            .apply { setReferenceCounted(false) }
+    }
+
+    // Built once and kept for this service's whole lifetime instead of per-startVpn() so the
+    // addKey/add-awg-key HTTPS call's TLS connection can be pooled across reconnects and
+    // protocol-fallback attempts, rather than paying a fresh handshake on every single one.
+    // configInfo.certificate is a static bundled asset and protect() always delegates to this same
+    // VpnService instance, so nothing an authenticator needs actually varies per connection attempt.
+    private val wgAuthenticator: WireGuardAuthenticator by lazy {
+        PiaWgAuthenticator(
+            configInfo.certificate,
+            connectionSource,
+            connectionPrefs,
+            protect = ::protect,
+        )
+    }
+    private val awgAuthenticator: WireGuardAuthenticator by lazy {
+        PiaAwgAuthenticator(
+            configInfo.certificate,
+            connectionSource,
+            connectionPrefs,
+            protect = ::protect,
+        )
+    }
+
+    private val _connectionStatus = MutableStateFlow(KapeVPNConnectionStatus.Disconnected)
+    val connectionStatus: StateFlow<KapeVPNConnectionStatus> = _connectionStatus.asStateFlow()
+
+    private val job = SupervisorJob()
+    val scope = CoroutineScope(Dispatchers.IO + job)
+
+    inner class LocalBinder : Binder() {
+        fun getService(): PiaService = this@PiaService
+    }
+
+    private val binder = LocalBinder()
+
+    init {
+        scope.launch {
+            connectionStatus.collectLatest { status ->
+                if (status == KapeVPNConnectionStatus.Connected) {
+                    val ip = sessionController?.getGatewayForCurrentConnection()
+                    if (connectionPrefs.getGatewayNow().isEmpty()) {
+                        connectionPrefs.setGateway(ip?.asString() ?: "")
+                    }
+                    connectionPrefs.gateway.first { it.isNotEmpty() }
+                    startPortForwarding()
+                }
+            }
+        }
+    }
+
+    override fun onBind(intent: Intent): IBinder = binder
+
+    // VpnService has system-level recognition via BIND_VPN_SERVICE and is exempt from the
+    // standard foregroundServiceType requirement. No declared type fits a VPN tunnel semantically.
+    @SuppressLint("ForegroundServiceType")
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(CHANNEL_ID, "VPN", NotificationManager.IMPORTANCE_LOW)
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
+        val notification = vpnNotificationManager.updateContentIntent(configureIntent)
+        startForeground(NOTIFICATION_ID, notification)
+
+        // This is the component flagged android.net.VpnService.SUPPORTS_ALWAYS_ON, so the system
+        // starts it directly (Always-on VPN, boot, a START_STICKY restart) without going through
+        // ConnectionManagerImpl.connect() first — EXTRA_MANUAL_START is only ever set by our own
+        // connect flow, so its absence means the system started us and expects a connection.
+        if (intent?.getBooleanExtra(EXTRA_MANUAL_START, false) != true) {
+            scope.launch { connectionManager.connectToLastKnownOrOptimalServer() }
+        }
+
+        return START_STICKY
+    }
+
+    suspend fun startVpn(vpnExcluded: List<String>) {
+        sessionController?.stop()
+        sessionController = null
+        statusCollectionJob?.cancel()
+        statusCollectionJob = null
+
+        wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
+
+        notificationHandler.updateConnectionInfo(
+            getString(
+                com.kape.ui.R.string.vpn_notification_title_format,
+                connectionInfoProvider.name,
+            ),
+            configureIntent,
+        )
+
+        val killSwitchMode =
+            if (settingsPrefs.isAllowLocalTrafficEnabledNow()) {
+                KapeKillSwitchMode.Standard
+            } else {
+                // Advanced routes 0.0.0.0/0 with no local-range carve-out, so LAN traffic is
+                // blocked rather than allowed to bypass the tunnel.
+                KapeKillSwitchMode.Advanced
+            }
+
+        val selectedProtocol = settingsPrefs.getSelectedProtocolNow()
+        val vpnServiceLogger =
+            ServiceLogger(
+                this,
+                when (selectedProtocol) {
+                    VpnProtocols.WireGuard -> ServiceLogger.VpnServiceLoggerTag.WireGuard
+                    VpnProtocols.OpenVPN -> ServiceLogger.VpnServiceLoggerTag.OpenVpn
+                    VpnProtocols.Automatic -> ServiceLogger.VpnServiceLoggerTag.Automatic
+                },
+            )
+
+        val systemTunnel =
+            KapeSystemTunnel(
+                this,
+                vpnServiceLogger,
+                killSwitchMode = killSwitchMode,
+                splitTunnelAppMode =
+                    if (vpnExcluded.isEmpty()) {
+                        KapeSplitTunnelAppMode.Off
+                    } else {
+                        KapeSplitTunnelAppMode.Disallow(
+                            vpnExcluded,
+                        )
+                    },
+            )
+        // Automatic mode can generate both AMNEZIA-endpoint and WIREGUARD-endpoint configurations
+        // for the same attempt (see ConfigurationGenerator), so the authenticator is picked per
+        // attempt from each endpoint's own obfuscation field rather than once from selectedProtocol.
+        val authenticator =
+            CompositeWireGuardAuthenticator(
+                wgAuthenticator = wgAuthenticator,
+                awgAuthenticator = awgAuthenticator,
+            )
+        val wireGuardController =
+            KapeWireGuardConnectionController(
+                systemTunnel = systemTunnel,
+                authenticator = authenticator,
+                logger = vpnServiceLogger,
+            )
+        val openVpnController =
+            OpenVpnConnectionController(
+                context = this,
+                systemTunnel = systemTunnel,
+                coroutineScope = scope,
+                logger = vpnServiceLogger,
+            )
+
+        val configurationGenerator =
+            ConfigurationGenerator(
+                configInfo.certificate,
+                connectionSource,
+                settingsPrefs,
+                connectionPrefs,
+                getActiveInterfaceDnsUseCase,
+                this,
+                countryDetector,
+            )
+        val controller =
+            KapeSessionController(
+                configurationGenerator = configurationGenerator,
+                connectionControllers = listOf(openVpnController, wireGuardController),
+                systemTunnel = systemTunnel,
+            )
+
+        sessionController = controller
+
+        scope.launch {
+            sessionController?.state?.trafficStats?.collectLatest {
+                usageProvider.byteCount(it.bytesSent, it.bytesReceived)
+            }
+        }
+
+        statusCollectionJob =
+            scope.launch {
+                controller.state.connectionStatus.collect { status ->
+                    _connectionStatus.update { status }
+                    when (status) {
+                        // Renew on every (re)connect attempt so a ping-restart cycle can't
+                        // outlive the backstop timeout while it's still actively in progress.
+                        KapeVPNConnectionStatus.Connecting,
+                        KapeVPNConnectionStatus.Reconnecting,
+                        -> wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
+                        // Catches a library-reported failure that lands here without ever
+                        // going through stopSessionController(), so the lock can't be stranded.
+                        KapeVPNConnectionStatus.Disconnected ->
+                            if (wakeLock.isHeld) wakeLock.release()
+                        else -> Unit
+                    }
+                }
+            }
+
+        scope.launch { controller.start() }
+    }
+
+    suspend fun stopSessionController(reason: DisconnectReason = DisconnectReason.UserInitiated) {
+        statusCollectionJob?.cancel()
+        statusCollectionJob = null
+        sessionController?.stop(reason)
+        sessionController = null
+        usageProvider.reset()
+        _connectionStatus.update { KapeVPNConnectionStatus.Disconnected }
+        if (wakeLock.isHeld) wakeLock.release()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.launch { stopSessionController() }.invokeOnCompletion { job.cancel() }
+    }
+
+    override fun onRevoke() {
+        scope
+            .launch { stopSessionController(DisconnectReason.Revoked) }
+            .invokeOnCompletion { stopSelf() }
+        stopSelf()
+    }
+
+    private suspend fun startPortForwarding() {
+        if (!settingsPrefs.isPortForwardingEnabledNow()) return
+        portForwardingUseCase.bindPort(connectionSource.getVpnToken())
+        connectionSource.startPortForwarding()
+    }
+
+    private fun IpAddress.asString(): String =
+        when (this) {
+            is IpAddress.V4 -> value
+            is IpAddress.V6 -> value
+        }
+
+    companion object {
+        private const val CHANNEL_ID = "kape_vpn"
+        const val EXTRA_MANUAL_START = "manual_start"
+
+        // Well above a normal OpenVPN ping-restart cycle; a backstop, not the expected hold time.
+        private const val WAKE_LOCK_TIMEOUT_MS = 5 * 60 * 1000L
+    }
+}

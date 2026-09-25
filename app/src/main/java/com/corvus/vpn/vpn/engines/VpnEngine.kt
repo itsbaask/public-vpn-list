@@ -1,6 +1,6 @@
 package com.corvus.vpn.vpn.engines
 
-import com.corvus.vpn.vpn.model.VpnState
+import android.content.Context
 import de.blinkt.openvpn.core.ConnectionStatus
 import kotlinx.coroutines.flow.StateFlow
 
@@ -13,7 +13,7 @@ interface VpnEngine {
     /**
      * Start the VPN with the given configuration string.
      */
-    fun start(config: String, serverName: String)
+    fun start(config: String, serverName: String, activityContext: Context? = null)
     
     /**
      * Stop the VPN connection.

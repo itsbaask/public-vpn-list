@@ -1,0 +1,81 @@
+plugins {
+    alias(libs.plugins.library)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.junit5)
+    alias(libs.plugins.configuration)
+    alias(libs.plugins.koin.compiler)
+    alias(libs.plugins.compose)
+}
+
+android {
+    flavorDimensions.add("provider")
+    productFlavors {
+        create("amazon") {
+            dimension = "provider"
+        }
+        create("google") {
+            dimension = "provider"
+        }
+        create("noinapp") {
+            dimension = "provider"
+        }
+        create("meta") {
+            dimension = "provider"
+        }
+        create("fdroid") {
+            dimension = "provider"
+        }
+    }
+    namespace = "com.kape.login"
+
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+    }
+
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
+    buildFeatures {
+        compose = true
+    }
+}
+
+dependencies {
+    coreLibraryDesugaring(libs.desugar)
+
+    implementation(libs.mobile.shared.account)
+
+    implementation(project(":core:payments"))
+    implementation(project(":core:contracts"))
+    implementation(project(":core:utils"))
+    implementation(project(":core:data"))
+    implementation(project(":core:vpnconnect"))
+
+    implementation(project(":capabilities:buildconfig"))
+    implementation(project(":capabilities:shareevents"))
+    implementation(project(":capabilities:ui"))
+
+    implementation(project(":features:permissions"))
+
+    // prefs
+    implementation(project(":core:localprefs:prefs"))
+    implementation(project(":core:localprefs:data"))
+    implementation(libs.mobile.shared.kpi)
+    implementation(libs.bundles.compose)
+    androidTestImplementation(libs.bundles.composeandroidtest)
+    implementation(libs.bundles.android)
+    implementation(libs.bundles.koin)
+    testImplementation(libs.bundles.kointest)
+    androidTestImplementation(libs.bundles.koinandroidtest)
+    implementation(libs.coroutines)
+    testImplementation(libs.coroutines.test)
+    androidTestImplementation(libs.bundles.coroutines.androidtest)
+    testImplementation(libs.bundles.test)
+    runtimeOnly(libs.launcher)
+}
+
+koinCompiler {
+    compileSafety = false
+}

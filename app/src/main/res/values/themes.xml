@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.CorvusVPN" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:statusBarColor">#F2F2F7</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#0A0A0D</item>
+        <item name="android:windowBackground">#0A0A0D</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">#0A0A0D</item>
     </style>
 
     <style name="Theme.CorvusVPN.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenAnimatedIcon">@drawable/logo</item>
-        <item name="windowSplashScreenBackground">#F2F2F7</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/corvus_logo_violet</item>
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
         <item name="postSplashScreenTheme">@style/Theme.CorvusVPN</item>
     </style>
 
-    <style name="Theme.Transparent" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="Theme.Transparent" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowContentOverlay">@null</item>

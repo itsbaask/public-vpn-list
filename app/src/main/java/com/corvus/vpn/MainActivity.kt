@@ -6,7 +6,12 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
+import android.content.Context
+import java.util.Locale
 import com.corvus.vpn.ui.home.HomeScreen
+import androidx.compose.ui.res.stringResource
 import com.corvus.vpn.ui.theme.CorvusVPNTheme
 import com.corvus.vpn.vpn.VpnManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -36,6 +41,21 @@ import androidx.activity.result.contract.ActivityResultContracts
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    override fun attachBaseContext(newBase: Context) {
+        val prefs = newBase.getSharedPreferences("corvus_settings", Context.MODE_PRIVATE)
+        val lang = prefs.getString("language", "") ?: ""
+        val context = if (lang.isNotBlank()) {
+            val locale = Locale.forLanguageTag(lang)
+            Locale.setDefault(locale)
+            val configuration = newBase.resources.configuration
+            configuration.setLocale(locale)
+            newBase.createConfigurationContext(configuration)
+        } else {
+            newBase
+        }
+        super.attachBaseContext(context)
+    }
+
     @Inject lateinit var vpnManager: VpnManager
     @Inject lateinit var serverRepository: ServerRepository
     @Inject lateinit var settingsRepository: SettingsRepository
@@ -52,7 +72,7 @@ class MainActivity : ComponentActivity() {
         if (result.resultCode == RESULT_OK) {
             val server = activeServerForVpn
             if (server != null) {
-                vpnManager.startVpn(server)
+                vpnManager.startVpn(server, this)
             }
         }
     }
@@ -90,6 +110,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        val savedLang = settingsRepository.language
+        if (savedLang.isNotBlank()) {
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(savedLang))
+        }
         unityAdsManager.initialize(this)
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -164,11 +188,13 @@ class MainActivity : ComponentActivity() {
 
                 when (currentScreen) {
                     "home" -> {
+                        val selectLocationStr = stringResource(R.string.select_location)
+                        val bestAutomaticStr = stringResource(R.string.best_automatic)
                         HomeScreen(
                             isConnected = isConnected,
                             isConnecting = isConnecting,
-                            serverName = selectedServer?.name ?: "Select Location",
-                            countryCode = if (selectedServer == null) "🌐" else CountryUtils.getFlagEmoji(selectedServer?.countryCode ?: ""),
+                            serverName = if (selectedServer?.id == "best_automatic") bestAutomaticStr else (selectedServer?.name ?: selectLocationStr),
+                            countryCode = if (selectedServer == null) "🌐" else if (selectedServer?.id == "best_automatic") "⚡" else CountryUtils.getFlagEmoji(selectedServer?.countryCode ?: ""),
                             serverTier = selectedServer?.tier ?: "free",
                             selectedMode = vpnProtocolMode,
                             onModeChange = { newMode ->
@@ -224,17 +250,27 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onSelectBest = {
-                                val best = serverEntities.maxByOrNull { it.score ?: 0 }
-                                if (best != null) {
-                                    selectedServer = Server(
-                                        id = best.id, protocol = "OPENVPN", engine = "OPENVPN",
-                                        name = best.name, countryCode = best.countryCode,
-                                        countryName = best.countryName, ping = best.ping,
-                                        speed = best.speed, signal = 3, ovpnConfig = best.ovpnConfig
-                                    )
-                                    if (isConnected) vpnManager.switchServer(selectedServer!!)
-                                }
+                                selectedServer = Server(
+                                    id = "best_automatic",
+                                    protocol = "OPENVPN",
+                                    engine = "OPENVPN",
+                                    name = "Best Automatic",
+                                    countryCode = "US",
+                                    countryName = "Best Automatic",
+                                    ping = 15,
+                                    speed = 100,
+                                    signal = 3,
+                                    tier = "free"
+                                )
                                 currentScreen = "home"
+                                val bestEntity = serverEntities.maxByOrNull { it.score ?: 0 }
+                                if (isConnected && bestEntity != null) {
+                                    val list = loadServersFromEntities(listOf(bestEntity))
+                                    val bestServer = list.values.flatten().firstOrNull()
+                                    if (bestServer != null) {
+                                        vpnManager.switchServer(bestServer)
+                                    }
+                                }
                             },
                             onProClick = { currentScreen = "pro" },
                             onBack = { currentScreen = "home" }
@@ -286,7 +322,11 @@ class MainActivity : ComponentActivity() {
                                 unityAdsManager.showInterstitialAd(this@MainActivity)
                                 currentScreen = "my_ip"
                             },
+                            onProClick = { currentScreen = "pro" },
                             onAboutClick = { currentScreen = "about" },
+                            onLanguageSelected = { code ->
+                                settingsRepository.language = code
+                            },
                             onBack = { currentScreen = "home" }
                         )
                     }
@@ -295,7 +335,12 @@ class MainActivity : ComponentActivity() {
                     }
                     "about" -> { AboutScreen(onBack = { currentScreen = "settings" }) }
                     "pro" -> {
-                        ProScreen(onClose = { currentScreen = "home" }, onPurchase = { isPro = true; currentScreen = "home" })
+                        ProScreen(
+                            totalNodes = serverEntities.size,
+                            totalCountries = realServers.size,
+                            onClose = { currentScreen = "home" },
+                            onPurchase = { isPro = true; currentScreen = "home" }
+                        )
                     }
                 }
             }
@@ -304,7 +349,16 @@ class MainActivity : ComponentActivity() {
 
     private fun startVpnConnection(server: Server?) {
         if (server == null) return
-        activeServerForVpn = server
+        var targetServer = server
+        if (server.id == "best_automatic") {
+            val entities = serverRepository.serversFlow.value
+            val bestEntity = entities.maxByOrNull { it.score ?: 0 }
+            if (bestEntity != null) {
+                val list = loadServersFromEntities(listOf(bestEntity))
+                targetServer = list.values.flatten().firstOrNull() ?: server
+            }
+        }
+        activeServerForVpn = targetServer
         val intent = android.net.VpnService.prepare(this)
         if (intent != null) {
             try {
@@ -314,7 +368,7 @@ class MainActivity : ComponentActivity() {
                 // Ignore and proceed
             }
         }
-        vpnManager.startVpn(server)
+        vpnManager.startVpn(targetServer, this)
     }
 
 

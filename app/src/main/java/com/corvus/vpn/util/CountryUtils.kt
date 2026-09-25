@@ -239,13 +239,22 @@ object CountryUtils {
         "HONGKONG" to "HK"
     )
 
+    fun normalizeCode(countryCode: String?): String {
+        if (countryCode.isNullOrBlank()) return "UN"
+        val raw = countryCode.uppercase().trim()
+        if (raw == "UK") return "GB"
+        if (aliasMap.containsKey(raw)) return aliasMap[raw]!!
+        return raw
+    }
+
     fun getCountryName(countryCode: String): String {
-        val code = countryCode.uppercase().trim()
+        val code = normalizeCode(countryCode)
         if (code.isBlank() || code == "UN" || code == "XX") return "Global / Unknown"
-        return countryMap[code]?.first ?: try {
-            Locale("", code).displayCountry
+        return try {
+            val name = Locale("", code).getDisplayCountry(Locale.getDefault())
+            if (name.isNotBlank()) name else countryMap[code]?.first ?: "Country ($code)"
         } catch (e: Exception) {
-            "Country ($code)"
+            countryMap[code]?.first ?: "Country ($code)"
         }
     }
 
@@ -264,7 +273,7 @@ object CountryUtils {
     }
 
     fun getFlagEmoji(countryCode: String): String {
-        val code = countryCode.uppercase().trim()
+        val code = normalizeCode(countryCode)
         if (countryMap.containsKey(code)) {
             return countryMap[code]!!.second
         }
@@ -279,7 +288,7 @@ object CountryUtils {
     }
 
     fun getContinent(countryCode: String): String {
-        val code = countryCode.uppercase().trim()
+        val code = normalizeCode(countryCode)
         return when (code) {
             // Europe
             "AD", "AL", "AT", "BA", "BE", "BG", "BY", "CH", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GE", "GR", "HR", "HU", "IE", "IS", "IT", "LI", "LT", "LU", "LV", "MC", "MD", "ME", "MK", "MT", "NL", "NO", "PL", "PT", "RO", "RS", "RU", "SE", "SI", "SK", "SM", "UA", "VA" -> "Europe"

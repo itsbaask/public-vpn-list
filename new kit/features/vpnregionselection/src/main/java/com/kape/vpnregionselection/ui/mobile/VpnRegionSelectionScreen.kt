@@ -1,0 +1,226 @@
+package com.kape.vpnregionselection.ui.mobile
+
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.unit.dp
+import androidx.core.os.ConfigurationCompat
+import com.kape.appbar.view.mobile.AppBar
+import com.kape.appbar.viewmodel.AppBarViewModel
+import com.kape.data.RegionItemType
+import com.kape.regions.data.ServerData
+import com.kape.ui.R
+import com.kape.ui.mobile.elements.Screen
+import com.kape.ui.mobile.elements.Search
+import com.kape.ui.mobile.text.MenuText
+import com.kape.ui.utils.LocalColors
+import com.kape.vpnregionselection.ui.vm.VpnRegionSelectionViewModel
+import org.koin.androidx.compose.koinViewModel
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun VpnRegionSelectionScreen() =
+    Screen {
+        val locale = ConfigurationCompat.getLocales(LocalConfiguration.current)[0]?.language
+        val isLoading = remember { mutableStateOf(false) }
+        val viewModel: VpnRegionSelectionViewModel =
+            koinViewModel<VpnRegionSelectionViewModel>().apply {
+                autoRegionIso = stringResource(id = R.string.automatic_iso)
+                autoRegionName = stringResource(id = R.string.optimal_vpn_region)
+                LaunchedEffect(Unit) {
+                    locale?.let {
+                        loadVpnRegions(it, isLoading, false)
+                    }
+                }
+            }
+        val appBarViewModel: AppBarViewModel =
+            koinViewModel<AppBarViewModel>().apply {
+                appBarText(stringResource(id = R.string.location_selection_title))
+            }
+        val isSearchEnabled = remember { mutableStateOf(false) }
+        val showToast = remember { mutableStateOf(false) }
+        val showChangeLocationDialog = remember { mutableStateOf(false) }
+
+        Column(
+            modifier =
+                Modifier
+                    .background(LocalColors.current.surfaceVariant)
+                    .fillMaxWidth()
+                    .semantics { testTagsAsResourceId = true }
+                    .padding(WindowInsets.navigationBars.asPaddingValues()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AppBar(appBarViewModel)
+            Column(modifier = Modifier.widthIn(max = 520.dp)) {
+                Search(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .testTag(":VpnRegionSelectionScreen:searchBar"),
+                ) {
+                    viewModel.filterByName(it, isSearchEnabled)
+                }
+
+                val context: Context = LocalContext.current
+                val message = stringResource(id = R.string.error_pinging_while_connected)
+
+                PullToRefreshBox(
+                    modifier = Modifier.testTag(":VpnRegionSelectionScreen:list"),
+                    state = rememberPullToRefreshState(),
+                    isRefreshing = isLoading.value,
+                    onRefresh = {
+                        showToast.value = viewModel.isVpnConnectionActive()
+                        if (showToast.value) {
+                            Toast
+                                .makeText(
+                                    context,
+                                    message,
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                        } else {
+                            locale?.let {
+                                viewModel.loadVpnRegions(locale, isLoading, true)
+                            }
+                        }
+                    },
+                ) {
+                    LazyColumn {
+                        val items =
+                            if (isSearchEnabled.value) {
+                                viewModel.sorted.value
+                            } else {
+                                viewModel.servers.value
+                            }
+                        items(items.size) { index ->
+                            val item = items[index]
+                            when (val type = item.type) {
+                                is RegionItemType.Content -> {
+                                    LocationPickerItem(
+                                        server = type.server,
+                                        isFavorite = type.isFavorite,
+                                        enableFavorite = type.enableFavorite,
+                                        isPortForwardingEnabled = viewModel.isPortForwardingEnabled.collectAsState().value,
+                                        isOffline = type.server.isOffline,
+                                        onClick = {
+                                            if (viewModel.isVpnConnectionActive()) {
+                                                showChangeLocationDialog.value =
+                                                    viewModel.selectServer(type.server)
+                                                if (!showChangeLocationDialog.value) {
+                                                    appBarViewModel.navigateBack()
+                                                }
+                                            } else {
+                                                viewModel.onVpnRegionSelected(it)
+                                                appBarViewModel.navigateBack()
+                                            }
+                                        },
+                                        onFavoriteVpnClick = {
+                                            viewModel.onFavoriteVpnClicked(
+                                                ServerData(
+                                                    type.server.name,
+                                                    type.server.isDedicatedIp,
+                                                ),
+                                            )
+                                        },
+                                        testTag = ":VpnRegionSelectionScreen:locationItem_$index",
+                                    )
+                                }
+
+                                RegionItemType.HeadingAll -> {
+                                    MenuText(
+                                        content = stringResource(id = R.string.all_locations),
+                                        modifier = Modifier.padding(16.dp),
+                                    )
+                                }
+
+                                RegionItemType.HeadingFavorites -> {
+                                    MenuText(
+                                        content = stringResource(id = R.string.favorite),
+                                        modifier =
+                                            Modifier
+                                                .padding(16.dp)
+                                                .testTag(":VpnRegionSelectionScreen:favoritesHeading"),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (showChangeLocationDialog.value) {
+                    LocationChangeDialog(
+                        {
+                            viewModel.selectedServer.value?.let {
+                                viewModel.onVpnRegionSelected(it)
+                            }
+                            showChangeLocationDialog.value = false
+                        },
+                        {
+                            showChangeLocationDialog.value = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+@Composable
+fun LocationChangeDialog(
+    onConnect: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    AlertDialog(
+        modifier = Modifier.semantics { testTagsAsResourceId = true },
+        onDismissRequest = onCancel,
+        confirmButton = {
+            TextButton(onClick = onConnect, modifier = Modifier.testTag(":ChangeLocation:confirm")) {
+                Text(text = stringResource(id = R.string.dialog_change_location_action))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text(text = stringResource(id = R.string.dialog_change_location_dismiss))
+            }
+        },
+        title = {
+            Text(
+                text = stringResource(id = R.string.dialog_change_location_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(id = R.string.dialog_change_location_message),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        },
+    )
+}

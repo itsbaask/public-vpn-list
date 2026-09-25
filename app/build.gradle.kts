@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.ui:ui-text-google-fonts")
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.graphics.shapes)
     implementation(libs.androidx.security.crypto)
@@ -100,6 +101,7 @@ dependencies {
     implementation(libs.unity.ads)
 
     implementation(project(":openvpn"))
+    implementation(libs.androidx.appcompat)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

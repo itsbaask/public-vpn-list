@@ -22,8 +22,6 @@ class OpenVpnEngine @Inject constructor(
     @ApplicationContext private val context: Context
 ) : VpnEngine, VpnStatus.StateListener {
 
-    private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
     private val _legacyEngineState = MutableStateFlow(ConnectionStatus.LEVEL_NOTCONNECTED)
     override val legacyEngineState: StateFlow<ConnectionStatus> = _legacyEngineState.asStateFlow()
 
@@ -39,7 +37,7 @@ class OpenVpnEngine @Inject constructor(
             .apply()
     }
 
-    override fun start(config: String, serverName: String) {
+    override fun start(config: String, serverName: String, activityContext: Context?) {
         Log.d("OpenVpnEngine", "Start requested for $serverName")
         if (config.isEmpty()) return
 
@@ -63,8 +61,8 @@ class OpenVpnEngine @Inject constructor(
             ProfileManager.saveProfile(context, vp)
             ProfileManager.setConnectedVpnProfile(context, vp)
 
-            // Direct instant service launch bypassing background activity restrictions!
-            VPNLaunchHelper.startOpenVpn(vp, context, "AppConnection", true)
+            val launchContext = activityContext ?: context
+            VPNLaunchHelper.startOpenVpn(vp, launchContext, "AppConnection", true)
             
         } catch (e: Exception) {
             Log.e("OpenVpnEngine", "Parsing failed", e)

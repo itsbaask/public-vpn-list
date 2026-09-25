@@ -1,6 +1,7 @@
 package com.corvus.vpn.ui.theme
 
 import android.app.Activity
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -11,39 +12,45 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = DarkAccent,
-    onPrimary = DarkCanvas,
-    primaryContainer = DarkAccentContainer,
-    onPrimaryContainer = DarkText,
-    secondary = DarkSecondaryText,
-    onSecondary = DarkText,
-    background = DarkCanvas,
-    onBackground = DarkText,
-    surface = DarkCard,
-    onSurface = DarkText,
-    surfaceVariant = DarkSurfaceVariant,
-    onSurfaceVariant = DarkSecondaryText,
-    outline = DarkOutline,
-    outlineVariant = DarkOutline,
-    error = DarkDanger
+    primary = CrowAccent,
+    onPrimary = CrowBlack,
+    primaryContainer = CrowAccentBorder,
+    onPrimaryContainer = CrowAccentText,
+    secondary = CrowMuted,
+    onSecondary = CrowText,
+    tertiary = CrowGold,
+    onTertiary = CrowBlack,
+    background = CrowBlack,
+    onBackground = CrowText,
+    surface = CrowSurface,
+    onSurface = CrowText,
+    surfaceVariant = CrowCore,
+    onSurfaceVariant = CrowMuted,
+    outline = CrowBorder,
+    outlineVariant = CrowBorder,
+    error = CrowBlood,
+    onError = CrowText
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = LightAccent,
-    onPrimary = LightCard,
-    primaryContainer = LightAccentContainer,
-    onPrimaryContainer = LightText,
-    secondary = LightSecondaryText,
-    onSecondary = LightCard,
-    background = LightCanvas,
-    onBackground = LightText,
-    surface = LightCard,
-    onSurface = LightText,
-    surfaceVariant = LightSurfaceVariant,
-    onSurfaceVariant = LightSecondaryText,
-    outline = LightOutline,
-    outlineVariant = LightOutline,
-    error = LightDanger
+    primary = CrowAccent,
+    onPrimary = CrowBlack,
+    primaryContainer = CrowAccentBorder,
+    onPrimaryContainer = CrowAccentText,
+    secondary = CrowMuted,
+    onSecondary = CrowText,
+    tertiary = CrowGold,
+    onTertiary = CrowBlack,
+    background = CrowBlack,
+    onBackground = CrowText,
+    surface = CrowSurface,
+    onSurface = CrowText,
+    surfaceVariant = CrowCore,
+    onSurfaceVariant = CrowMuted,
+    outline = CrowBorder,
+    outlineVariant = CrowBorder,
+    error = CrowBlood,
+    onError = CrowText
 )
 
 @Composable
@@ -51,10 +58,11 @@ fun CorvusVPNTheme(
     themeMode: String = "system",
     content: @Composable () -> Unit
 ) {
+    val systemInDark = isSystemInDarkTheme()
     val darkTheme = when (themeMode) {
         "light" -> false
         "dark" -> true
-        else -> true // Default to dark for VPN
+        else -> systemInDark
     }
 
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
@@ -63,7 +71,10 @@ fun CorvusVPNTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.navigationBarColor = colorScheme.background.toArgb()
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = false
+            insetsController.isAppearanceLightNavigationBars = false
         }
     }
 

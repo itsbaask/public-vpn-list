@@ -2,7 +2,7 @@ name: Unified VPN Cloudflare Enterprise Sync Engine
 
 on:
   schedule:
-    - cron: '0 */4 * * *'   # Full reconciliation & cleanup every 4 hours
+    - cron: '*/10 * * * *'   # Full reconciliation & cleanup every 10 minutes
   workflow_dispatch:
     inputs:
       sync_mode:

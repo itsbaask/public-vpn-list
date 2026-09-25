@@ -1,0 +1,67 @@
+plugins {
+    alias(libs.plugins.library)
+    alias(libs.plugins.configuration)
+    alias(libs.plugins.koin.compiler)
+    alias(libs.plugins.serialization)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.junit5)
+    alias(libs.plugins.compose)
+}
+
+android {
+    namespace = "com.kape.payments"
+
+    flavorDimensions.add("provider")
+    productFlavors {
+        create("amazon") {
+            dimension = "provider"
+        }
+        create("google") {
+            dimension = "provider"
+        }
+        create("noinapp") {
+            dimension = "provider"
+        }
+        create("meta") {
+            dimension = "provider"
+        }
+        create("fdroid") {
+            dimension = "provider"
+        }
+    }
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
+
+    buildFeatures {
+        compose = true
+    }
+}
+
+dependencies {
+    coreLibraryDesugaring(libs.desugar)
+
+    implementation(libs.mobile.shared.account)
+    implementation(project(":core:localprefs:prefs"))
+    implementation(project(":core:localprefs:data"))
+    implementation(project(":core:data"))
+
+    implementation(libs.bundles.koin)
+    implementation(libs.datastore.preferences)
+    testImplementation(libs.bundles.kointest)
+    androidTestImplementation(libs.bundles.koinandroidtest)
+    implementation(libs.coroutines)
+    testImplementation(libs.coroutines.test)
+    androidTestImplementation(libs.bundles.coroutines.androidtest)
+    implementation(libs.bundles.serialization)
+    "googleImplementation"(libs.billing.google)
+    "googleImplementation"(project(":core:contracts"))
+    testImplementation(libs.bundles.test)
+    runtimeOnly(libs.launcher)
+}
+
+koinCompiler {
+    compileSafety = false
+}

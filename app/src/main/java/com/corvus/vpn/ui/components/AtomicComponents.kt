@@ -1,9 +1,12 @@
 package com.corvus.vpn.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -19,42 +22,53 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.corvus.vpn.R
 import com.corvus.vpn.ui.theme.*
 
+/**
+ * Primary Action Button (Crow Theme)
+ */
 @Composable
 fun CorvusButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.primary,
-    contentColor: Color = MaterialTheme.colorScheme.onPrimary
+    enabled: Boolean = true,
+    containerColor: Color = CrowAccent,
+    contentColor: Color = CrowBlack
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
+        targetValue = if (isPressed) 0.95f else 1f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "button_scale"
     )
 
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .height(54.dp)
+            .height(52.dp)
             .scale(scale),
-        shape = RoundedCornerShape(27.dp),
+        shape = RoundedCornerShape(26.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
-            contentColor = contentColor
+            contentColor = contentColor,
+            disabledContainerColor = containerColor.copy(alpha = 0.4f),
+            disabledContentColor = contentColor.copy(alpha = 0.4f)
         ),
         elevation = ButtonDefaults.buttonElevation(
             defaultElevation = 0.dp,
@@ -73,24 +87,34 @@ fun CorvusButton(
     }
 }
 
+/**
+ * Surface Container Card (Crow Theme)
+ */
 @Composable
 fun CorvusCard(
     modifier: Modifier = Modifier,
+    backgroundColor: Color = CrowSurface,
+    borderColor: Color = CrowBorder,
+    cornerRadius: Dp = 18.dp,
+    padding: Dp = 16.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = CyberSurfaceDark,
-        border = BorderStroke(width = 1.dp, color = CyberBorderStroke)
+        shape = RoundedCornerShape(cornerRadius),
+        color = backgroundColor,
+        border = BorderStroke(width = 1.dp, color = borderColor)
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
+            modifier = Modifier.padding(padding),
             content = content
         )
     }
 }
 
+/**
+ * Toggle Switch (Crow Theme)
+ */
 @Composable
 fun CorvusToggle(
     checked: Boolean,
@@ -102,44 +126,49 @@ fun CorvusToggle(
         onCheckedChange = onCheckedChange,
         modifier = modifier,
         colors = SwitchDefaults.colors(
-            checkedThumbColor = Color.White,
-            checkedTrackColor = ElectricNeonGreen,
+            checkedThumbColor = CrowText,
+            checkedTrackColor = CrowAccent,
             checkedBorderColor = Color.Transparent,
-            uncheckedThumbColor = TextSecondaryMuted,
-            uncheckedTrackColor = CyberSurfaceVariant,
+            uncheckedThumbColor = CrowMuted,
+            uncheckedTrackColor = CrowBorder,
             uncheckedBorderColor = Color.Transparent
         )
     )
 }
 
+/**
+ * List Row Item (Crow Theme)
+ */
 @Composable
 fun CorvusListRow(
     title: String,
     icon: ImageVector,
     onClick: () -> Unit,
     subtitle: String? = null,
+    iconContainerColor: Color = CrowAccentBorder,
+    iconTintColor: Color = CrowAccentText,
     trailingContent: @Composable (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 12.dp),
+            .padding(vertical = 10.dp, horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(36.dp)
                 .clip(CircleShape)
-                .background(ElectricCyan.copy(alpha = 0.12f)),
+                .background(iconContainerColor),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = ElectricCyan,
-                modifier = Modifier.size(20.dp)
+                tint = iconTintColor,
+                modifier = Modifier.size(18.dp)
             )
         }
         Spacer(modifier = Modifier.width(14.dp))
@@ -149,8 +178,10 @@ fun CorvusListRow(
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp,
-                    color = TextPrimaryWhite
-                )
+                    color = CrowText
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             if (!subtitle.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(2.dp))
@@ -158,8 +189,10 @@ fun CorvusListRow(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontSize = 12.sp,
-                        color = TextSecondaryMuted
-                    )
+                        color = CrowMuted
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -169,12 +202,16 @@ fun CorvusListRow(
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = TextSecondaryMuted
+                tint = CrowMuted,
+                modifier = Modifier.size(18.dp)
             )
         }
     }
 }
 
+/**
+ * Concentric Ring Crow Power Switch (Crow Theme)
+ */
 @Composable
 fun CorvusStatusRing(
     isConnected: Boolean,
@@ -182,129 +219,94 @@ fun CorvusStatusRing(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val stateColor = when {
-        isConnected -> ElectricNeonGreen
-        isConnecting -> GlowingAmber
-        else -> ElectricCyan
-    }
+    val on = isConnected || isConnecting
 
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val buttonScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "buttonScale"
-    )
-
-    // Breathing Glow & Pulse Waves
-    val infiniteTransition = rememberInfiniteTransition(label = "power_glow")
-    val glowScale by infiniteTransition.animateFloat(
-        initialValue = if (isConnected || isConnecting) 1.0f else 0.98f,
-        targetValue = if (isConnected || isConnecting) 1.12f else 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glow_scale"
-    )
-
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = if (isConnected || isConnecting) 0.25f else 0.10f,
-        targetValue = if (isConnected || isConnecting) 0.50f else 0.20f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glow_alpha"
-    )
+    val outerRing by animateColorAsState(if (on) CrowRingOuterOn else CrowRingOuterOff, tween(500), label = "outer")
+    val innerRing by animateColorAsState(if (on) CrowRingInnerOn else CrowRingInnerOff, tween(500), label = "inner")
+    val buttonRing by animateColorAsState(if (on) CrowAccent else CrowButtonRingOff, tween(500), label = "btn")
+    val logoTint by animateColorAsState(if (isConnected) CrowLogoOn else CrowLogoOff, tween(500), label = "logo")
+    val glow by animateColorAsState(if (isConnected) CrowAccentGlow else Color.Transparent, tween(500), label = "glow")
 
     Box(
+        modifier = modifier.size(268.dp).border(1.dp, outerRing, CircleShape),
         contentAlignment = Alignment.Center,
-        modifier = modifier
-            .size(210.dp)
-            .scale(buttonScale)
-            .clip(CircleShape)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(color = stateColor)
-            ) { onClick() }
     ) {
-        // Outer Ambient Cyber Radar Aura
-        Canvas(
-            modifier = Modifier
-                .size(210.dp)
-                .scale(glowScale),
-            onDraw = {
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            stateColor.copy(alpha = glowAlpha),
-                            stateColor.copy(alpha = glowAlpha * 0.35f),
-                            Color.Transparent
-                        )
-                    )
-                )
-            }
-        )
-
-        // Glassmorphic Inner Button Container
-        Surface(
-            shape = CircleShape,
-            color = CyberSurfaceDark,
-            border = BorderStroke(
-                width = 2.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        stateColor,
-                        stateColor.copy(alpha = 0.25f)
-                    )
-                )
-            ),
-            shadowElevation = 16.dp,
-            modifier = Modifier.size(146.dp)
+        Box(
+            modifier = Modifier.size(222.dp).border(1.dp, innerRing, CircleShape),
+            contentAlignment = Alignment.Center,
         ) {
             Box(
+                modifier = Modifier
+                    .size(176.dp)
+                    .shadow(28.dp, CircleShape, ambientColor = glow, spotColor = glow)
+                    .clip(CircleShape)
+                    .background(CrowCore)
+                    .border(if (on) 2.dp else 1.5.dp, buttonRing, CircleShape)
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = if (isConnected) "Disconnect" else "Connect",
+                        onClick = onClick,
+                    ),
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
             ) {
-                if (isConnecting) {
-                    LoadingRingCanvas(stateColor = stateColor)
-                }
-
-                Icon(
-                    imageVector = Icons.Default.PowerSettingsNew,
-                    contentDescription = "Power Toggle",
-                    tint = stateColor,
-                    modifier = Modifier.size(58.dp)
+                Image(
+                    painter = painterResource(R.drawable.logo_no_bg),
+                    contentDescription = if (isConnected) "Disconnect" else "Connect",
+                    colorFilter = ColorFilter.tint(logoTint),
+                    modifier = Modifier.width(72.dp).height(86.dp),
                 )
             }
         }
     }
 }
 
+/**
+ * Status Pill Badge (Crow Theme)
+ */
 @Composable
-private fun LoadingRingCanvas(stateColor: Color) {
-    val rotation by rememberInfiniteTransition(label = "rotateAnim").animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = LinearEasing)
-        ),
-        label = "rotate"
-    )
-
-    Canvas(
-        modifier = Modifier
-            .size(146.dp)
-            .scale(1.05f),
-        onDraw = {
-            drawArc(
-                startAngle = rotation,
-                sweepAngle = 120f,
-                useCenter = false,
-                color = stateColor,
-                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+fun StatusBadgePill(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = CircleShape,
+        color = CrowSurface,
+        border = BorderStroke(width = 1.dp, color = CrowBorder),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Text(
+                text = text,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = CrowText
             )
         }
+    }
+}
+
+/**
+ * Custom Divider (Crow Theme)
+ */
+@Composable
+fun CorvusDivider(
+    modifier: Modifier = Modifier,
+    color: Color = CrowBorder
+) {
+    HorizontalDivider(
+        modifier = modifier.fillMaxWidth(),
+        thickness = 0.5.dp,
+        color = color
     )
 }

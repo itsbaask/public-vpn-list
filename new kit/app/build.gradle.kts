@@ -1,0 +1,247 @@
+import com.android.build.api.dsl.ApplicationExtension
+import java.net.URI
+
+plugins {
+    alias(libs.plugins.application)
+    alias(libs.plugins.compose)
+    alias(libs.plugins.configuration)
+    alias(libs.plugins.koin.compiler)
+    alias(libs.plugins.ktlint)
+}
+
+// Please update both and keep them static, otherwise Fdroid fails to pull
+val googleAppVersionCode = 715
+val noInAppVersionCode = 10715
+val appVersionName = "4.1.2"
+
+configure<ApplicationExtension> {
+    namespace = "com.kape.vpn"
+
+    defaultConfig {
+        testInstrumentationRunnerArguments +=
+            mapOf(
+                "clearPackageData" to "true",
+                "PIA_VALID_USERNAME" to System.getenv("PIA_VALID_USERNAME").orEmpty(),
+                "PIA_VALID_PASSWORD" to System.getenv("PIA_VALID_PASSWORD").orEmpty(),
+                "PIA_VALID_DIP_TOKEN" to System.getenv("PIA_VALID_DIP_TOKEN").orEmpty(),
+            )
+        applicationId = "com.kape.vpn"
+        versionName = appVersionName
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables.useSupportLibrary = true
+    }
+
+    testOptions.execution = "ANDROIDX_TEST_ORCHESTRATOR"
+
+    buildTypes {
+        release {
+            optimization {
+                enable = true
+            }
+        }
+    }
+
+    flavorDimensions.add("provider")
+    productFlavors {
+        create("amazon") {
+            dimension = "provider"
+            applicationId = "com.privateinternetaccess.android"
+            versionCode = noInAppVersionCode
+            buildConfigField(
+                "String",
+                "UPDATE_URL",
+                "\"amzn://apps/android?p=com.privateinternetaccess.android\"",
+            )
+        }
+        create("google") {
+            dimension = "provider"
+            applicationId = "com.privateinternetaccess.android"
+            versionCode = googleAppVersionCode
+            buildConfigField(
+                "String",
+                "UPDATE_URL",
+                "\"market://details?id=com.privateinternetaccess.android\"",
+            )
+        }
+        create("noinapp") {
+            dimension = "provider"
+            applicationId = "com.privateinternetaccess.android"
+            versionCode = noInAppVersionCode
+            buildConfigField("String", "UPDATE_URL", "\"\"")
+        }
+        create("meta") {
+            dimension = "provider"
+            applicationId = "com.privateinternetaccess.android"
+            versionCode = noInAppVersionCode
+            buildConfigField("String", "UPDATE_URL", "\"\"")
+        }
+        create("fdroid") {
+            dimension = "provider"
+            applicationId = "com.privateinternetaccess.android"
+            versionCode = noInAppVersionCode
+            buildConfigField("String", "UPDATE_URL", "\"\"")
+        }
+    }
+
+    sourceSets {
+        getByName("amazon").manifest.srcFile("amazon/AndroidManifest.xml")
+        getByName("google").manifest.srcFile("google/AndroidManifest.xml")
+        getByName("noinapp").manifest.srcFile("noinapp/AndroidManifest.xml")
+        getByName("meta").manifest.srcFile("meta/AndroidManifest.xml")
+        getByName("fdroid").manifest.srcFile("fdroid/AndroidManifest.xml")
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+        isCoreLibraryDesugaringEnabled = true
+    }
+
+    buildFeatures {
+        buildConfig = true
+        compose = true
+    }
+
+    packaging.resources {
+        excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        excludes += "/META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        excludes += "/META-INF/LICENSE.md"
+        excludes += "/META-INF/LICENSE-notice.md"
+    }
+
+    packaging.jniLibs {
+        useLegacyPackaging = true
+    }
+
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+}
+
+dependencies {
+    coreLibraryDesugaring(libs.desugar)
+    val composeBom = platform(libs.compose.bom)
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
+
+    implementation(project(":core:router"))
+    implementation(project(":core:utils"))
+    implementation(project(":core:data"))
+    implementation(project(":core:httpclient"))
+    implementation(project(":core:localprefs:prefs"))
+    implementation(project(":core:localprefs:data"))
+    implementation(project(":core:payments"))
+    implementation(project(":core:vpnconnect"))
+    implementation(project(":core:vpnlauncher"))
+    implementation(project(":core:portforwarding"))
+    implementation(project(":core:regions"))
+    implementation(project(":core:obfuscator"))
+    implementation(project(":core:contracts"))
+    implementation(libs.mobile.android.openvpn)
+    implementation(libs.mobile.shared.regions)
+    implementation(libs.mobile.shared.account)
+    implementation(libs.mobile.shared.csi)
+    implementation(libs.mobile.shared.kpi)
+    implementation(libs.mobile.android.obfuscation.proxy)
+
+    implementation(project(":capabilities:ui"))
+    implementation(project(":capabilities:shareevents"))
+    implementation(project(":capabilities:notifications"))
+    implementation(project(":capabilities:csi"))
+    implementation(project(":capabilities:networkmanagement"))
+    implementation(project(":capabilities:snooze"))
+    implementation(project(":capabilities:buildconfig"))
+    implementation(project(":capabilities:featureflags"))
+    implementation(project(":capabilities:location"))
+
+    implementation(project(":features:splash"))
+    implementation(project(":features:tvwelcome"))
+    implementation(project(":features:signup"))
+    implementation(project(":features:login"))
+    implementation(project(":features:settings"))
+    implementation(project(":features:permissions"))
+    implementation(project(":features:profile"))
+    implementation(project(":features:vpnregionselection"))
+    implementation(project(":features:obfuscationregionselection"))
+    implementation(project(":features:sidemenu"))
+    implementation(project(":features:connection"))
+    implementation(project(":features:appbar"))
+    implementation(project(":features:dedicatedip"))
+    implementation(project(":features:automation"))
+    implementation(project(":features:widget"))
+    implementation(project(":features:about"))
+    implementation(project(":features:customization"))
+    implementation(project(":features:inappbrowser"))
+    implementation(project(":features:rating"))
+
+    implementation(libs.bundles.android)
+    implementation(libs.bundles.compose)
+    androidTestImplementation(libs.compose.android.test)
+    debugImplementation(libs.bundles.debugtest)
+    implementation(libs.bundles.koin)
+    testImplementation(libs.bundles.kointest)
+    androidTestImplementation(libs.bundles.koinandroidtest)
+    implementation(libs.multiplatform.settings)
+    implementation(libs.coroutines)
+    "googleImplementation"(libs.shortcuts)
+    "amazonImplementation"(libs.shortcuts)
+    "noinappImplementation"(libs.shortcuts)
+
+    testImplementation(libs.coroutines.test)
+    "googleImplementation"(libs.billing.google)
+    androidTestImplementation(libs.bundles.androidtest)
+    "androidTestUtil"(libs.orchestrator)
+}
+
+ktlint {
+    android.set(true)
+    outputColorName.set("RED")
+}
+
+// Not wired to preBuild: region metadata is committed to app/src/main/assets so that every
+// build (including F-Droid's network-less, reproducible build) uses the same checked-in data.
+// Run this manually and commit the result when bumping the version.
+tasks.register("updateRegionsInformation") {
+    group = "custom"
+    description = "Fetches latest VPN and Shadowsocks region metadata into app/src/main/assets for committing"
+    doLast {
+        val assetsDir = File("$rootDir/app/src/main/assets")
+        if (!assetsDir.exists()) assetsDir.mkdirs()
+
+        fun fetchFile(
+            urlString: String,
+            targetFile: File,
+        ) {
+            val url = URI(urlString).toURL()
+            targetFile.writeText(url.readText())
+        }
+        fetchFile(
+            "https://serverlist.piaservers.net/vpninfo/regions/v2",
+            File(assetsDir, "metadata-regions.json"),
+        )
+        fetchFile(
+            "https://serverlist.piaservers.net/vpninfo/servers/v7",
+            File(assetsDir, "vpn-regions.json"),
+        )
+        fetchFile(
+            "https://serverlist.piaservers.net/shadow_socks",
+            File(assetsDir, "shadowsocks-regions.json"),
+        )
+
+        println("Region information files updated. Review the diff and commit.")
+    }
+}
+
+tasks.register("printVersionName") {
+    doLast { println(android.defaultConfig.versionName) }
+}
+
+tasks.register("printPlayStoreVersionCode") {
+    doLast { println(googleAppVersionCode) }
+}
+
+tasks.register("printNonPlayStoreVersionCode") {
+    doLast { println(noInAppVersionCode) }
+}

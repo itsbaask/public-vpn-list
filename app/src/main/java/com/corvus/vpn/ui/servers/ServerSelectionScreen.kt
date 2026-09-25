@@ -24,10 +24,11 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.corvus.vpn.R
-import com.corvus.vpn.ui.theme.getLatencyColor
+import com.corvus.vpn.ui.theme.*
 import com.corvus.vpn.util.CountryUtils
 
 data class Server(
@@ -73,25 +74,29 @@ fun ServerSelectionScreen(
     }
 
     var selectedContinent by remember { mutableStateOf("All") }
-
     var selectedTier by remember { mutableStateOf("free") }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = CrowBlack,
         topBar = {
-            Column {
+            Column(modifier = Modifier.background(CrowBlack)) {
                 TopAppBar(
                     title = {
                         Column {
-                            Text(stringResource(R.string.sovereign_network_title), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text(
+                                text = stringResource(R.string.sovereign_network_title),
+                                fontWeight = FontWeight.Bold,
+                                color = CrowText,
+                                fontSize = 18.sp
+                            )
                             Surface(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                color = CrowAccentBorder,
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
                                     text = if (isRefreshing) " ${stringResource(R.string.syncing_nodes)} " else " $totalServers ${stringResource(R.string.nodes_live)} ",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = CrowAccentText,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
@@ -100,11 +105,15 @@ fun ServerSelectionScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_custom_back),
+                                contentDescription = "Back",
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
+                        containerColor = CrowBlack
                     )
                 )
 
@@ -115,30 +124,30 @@ fun ServerSelectionScreen(
                         "premium_plus" -> 2
                         else -> 0
                     },
-                    containerColor = MaterialTheme.colorScheme.background,
-                    contentColor = MaterialTheme.colorScheme.primary
+                    containerColor = CrowBlack,
+                    contentColor = CrowAccent
                 ) {
                     Tab(
                         selected = selectedTier == "free",
                         onClick = { selectedTier = "free" },
-                        text = { Text(stringResource(R.string.tier_free), fontWeight = FontWeight.Bold) }
+                        text = { Text(stringResource(R.string.tier_free), fontWeight = FontWeight.Bold, color = if (selectedTier == "free") CrowAccent else CrowMuted) }
                     )
                     Tab(
                         selected = selectedTier == "premium",
                         onClick = { selectedTier = "premium" },
-                        text = { Text(stringResource(R.string.tier_premium), fontWeight = FontWeight.Bold) }
+                        text = { Text(stringResource(R.string.tier_premium), fontWeight = FontWeight.Bold, color = if (selectedTier == "premium") CrowAccent else CrowMuted) }
                     )
                     Tab(
                         selected = selectedTier == "premium_plus",
                         onClick = { selectedTier = "premium_plus" },
-                        text = { Text(stringResource(R.string.tier_premium_plus), fontWeight = FontWeight.Bold) }
+                        text = { Text(stringResource(R.string.tier_premium_plus), fontWeight = FontWeight.Bold, color = if (selectedTier == "premium_plus") CrowAccent else CrowMuted) }
                     )
                 }
 
                 // Continent Tabs
                 ScrollableTabRow(
                     selectedTabIndex = continents.indexOf(selectedContinent).coerceAtLeast(0),
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = CrowBlack,
                     edgePadding = 20.dp,
                     indicator = {},
                     divider = {}
@@ -148,10 +157,22 @@ fun ServerSelectionScreen(
                             selected = selectedContinent == continent,
                             onClick = { selectedContinent = continent },
                             text = {
+                                val continentText = if (continent == "All") {
+                                    stringResource(R.string.all_filter)
+                                } else {
+                                    when (continent) {
+                                        "Europe" -> stringResource(R.string.continent_europe)
+                                        "Asia" -> stringResource(R.string.continent_asia)
+                                        "America" -> stringResource(R.string.continent_america)
+                                        "Africa" -> stringResource(R.string.continent_africa)
+                                        "Oceania" -> stringResource(R.string.continent_oceania)
+                                        else -> stringResource(R.string.continent_other)
+                                    }
+                                }
                                 Text(
-                                    continent,
+                                    text = continentText,
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = if (selectedContinent == continent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                                    color = if (selectedContinent == continent) CrowAccent else CrowMuted
                                 )
                             }
                         )
@@ -163,6 +184,7 @@ fun ServerSelectionScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(CrowBlack)
                 .padding(paddingValues)
         ) {
             TextField(
@@ -171,14 +193,16 @@ fun ServerSelectionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 12.dp),
-                placeholder = { Text(stringResource(R.string.search_placeholder), color = MaterialTheme.colorScheme.secondary) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.secondary) },
+                placeholder = { Text(stringResource(R.string.search_placeholder), color = CrowMuted) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = CrowMuted) },
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                    focusedContainerColor = CrowSurface,
+                    unfocusedContainerColor = CrowSurface,
+                    focusedTextColor = CrowText,
+                    unfocusedTextColor = CrowText
                 )
             )
 
@@ -189,20 +213,24 @@ fun ServerSelectionScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 4.dp),
                     shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                    color = CrowSurface,
+                    border = BorderStroke(1.dp, CrowAccentBorder)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_custom_lock),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Ultra Fast Premium Nodes. Upgrade to Unlock All!",
+                            text = stringResource(R.string.ultra_fast_premium_nodes),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = CrowAccentText,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -276,7 +304,7 @@ fun CountryHeader(name: String, flag: String, isExpanded: Boolean, onClick: () -
                 Icon(
                     imageVector = Icons.Default.Public,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = CrowAccent,
                     modifier = Modifier.size(24.dp)
                 )
             } else {
@@ -287,14 +315,14 @@ fun CountryHeader(name: String, flag: String, isExpanded: Boolean, onClick: () -
                 text = name,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = CrowText,
                 modifier = Modifier.weight(1f)
             )
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
                 modifier = Modifier.rotate(rotation),
-                tint = MaterialTheme.colorScheme.secondary
+                tint = CrowMuted
             )
         }
     }
@@ -307,11 +335,11 @@ fun BestAutomaticRow(onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        color = CrowSurface,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outline
+            color = CrowBorder
         )
     ) {
         Row(
@@ -321,17 +349,22 @@ fun BestAutomaticRow(onClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape),
+                    .background(CrowAccentBorder, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = CrowAccentText,
+                    modifier = Modifier.size(20.dp)
+                )
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = stringResource(R.string.best_automatic),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = CrowText
             )
         }
     }
@@ -351,35 +384,22 @@ fun ServerRow(server: Server, onClick: () -> Unit) {
                 text = server.name,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = CrowText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = server.protocol.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Encrypted Line",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
+            Text(
+                text = stringResource(R.string.encrypted_line),
+                style = MaterialTheme.typography.labelSmall,
+                color = CrowMuted
+            )
         }
 
         if (server.speed != null && server.speed > 0) {
             Text(
                 text = "${server.speed} Mbps",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
+                color = CrowAccent,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -394,13 +414,12 @@ fun ServerRow(server: Server, onClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.width(12.dp))
         }
-        SignalIndicator(signal = server.signal, ping = server.ping)
+        SignalIndicator(signal = server.signal)
     }
 }
 
 @Composable
-fun SignalIndicator(signal: Int, ping: Int?) {
-    val barColor = getLatencyColor(ping)
+fun SignalIndicator(signal: Int) {
     Row(verticalAlignment = Alignment.Bottom) {
         repeat(3) { index ->
             Box(
@@ -408,8 +427,8 @@ fun SignalIndicator(signal: Int, ping: Int?) {
                     .width(3.dp)
                     .height((6 + (index * 4)).dp)
                     .background(
-                        if (index < signal) barColor
-                        else MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                        if (index < signal) CrowAccent
+                        else CrowMuted.copy(alpha = 0.2f),
                         shape = CircleShape
                     )
             )

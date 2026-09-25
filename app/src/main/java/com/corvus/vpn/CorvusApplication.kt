@@ -9,6 +9,21 @@ import de.blinkt.openvpn.core.ICSOpenVPNApplication
 @HiltAndroidApp
 class CorvusApplication : ICSOpenVPNApplication(), Configuration.Provider {
 
+    override fun attachBaseContext(base: android.content.Context) {
+        val prefs = base.getSharedPreferences("corvus_settings", android.content.Context.MODE_PRIVATE)
+        val lang = prefs.getString("language", "") ?: ""
+        val context = if (lang.isNotBlank()) {
+            val locale = java.util.Locale.forLanguageTag(lang)
+            java.util.Locale.setDefault(locale)
+            val configuration = base.resources.configuration
+            configuration.setLocale(locale)
+            base.createConfigurationContext(configuration)
+        } else {
+            base
+        }
+        super.attachBaseContext(context)
+    }
+
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
@@ -28,7 +43,7 @@ class CorvusApplication : ICSOpenVPNApplication(), Configuration.Provider {
             .build()
 
         val periodicSyncRequest = androidx.work.PeriodicWorkRequestBuilder<com.corvus.vpn.worker.SyncWorker>(
-            4, java.util.concurrent.TimeUnit.HOURS
+            6, java.util.concurrent.TimeUnit.HOURS
         )
             .setConstraints(constraints)
             .build()

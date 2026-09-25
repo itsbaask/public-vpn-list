@@ -3,6 +3,7 @@ package com.corvus.vpn.ui.about
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -11,11 +12,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.corvus.vpn.R
+import com.corvus.vpn.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,17 +26,21 @@ fun AboutScreen(
     onBack: () -> Unit
 ) {
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = CrowBlack,
         topBar = {
             TopAppBar(
-                title = { Text("About", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = { Text(stringResource(R.string.about_title), fontWeight = FontWeight.Bold, fontSize = 20.sp, color = CrowText) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_custom_back),
+                            contentDescription = "Back",
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = CrowBlack
                 )
             )
         }
@@ -41,6 +48,7 @@ fun AboutScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(CrowBlack)
                 .padding(paddingValues)
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -51,14 +59,14 @@ fun AboutScreen(
                 modifier = Modifier
                     .size(110.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                    .background(CrowAccentBorder),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.logo_no_bg),
                     contentDescription = null,
                     modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = CrowAccentText
                 )
             }
 
@@ -70,30 +78,30 @@ fun AboutScreen(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp
                 ),
-                color = MaterialTheme.colorScheme.onBackground
+                color = CrowText
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Version 1.0.0",
+                text = "${stringResource(R.string.version_label)} 1.0.0",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
+                color = CrowMuted
             )
 
             Spacer(modifier = Modifier.height(36.dp))
 
             Surface(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                shape = RoundedCornerShape(20.dp),
+                color = CrowSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, CrowBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Corvus VPN provides a secure, high-speed, and encrypted connection to the internet. Built with world-class privacy standards to ensure your digital life remains anonymous and protected.",
+                    text = stringResource(R.string.about_description),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = CrowMuted,
                     modifier = Modifier.padding(20.dp)
                 )
             }
@@ -101,9 +109,9 @@ fun AboutScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             Text(
-                text = "© 2026 Corvus Inc.",
+                text = stringResource(R.string.copyright_text),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary,
+                color = CrowFaint,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
         }

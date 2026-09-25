@@ -2,17 +2,20 @@ import urllib.request
 import json
 
 base_url = "https://pub-cb24fe4df15e483d8cb39116dcff1f7a.r2.dev/"
+req_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
 try:
     print("Fetching manifest...")
-    with urllib.request.urlopen(base_url + "v1/manifest.json") as resp:
+    req = urllib.request.Request(base_url + "v1/manifest.json", headers=req_headers)
+    with urllib.request.urlopen(req) as resp:
         manifest = json.loads(resp.read().decode('utf-8'))
         print("Manifest version:", manifest.get('version'))
         print("Manifest count:", manifest.get('count'))
         print("Generated at:", manifest.get('generated_at'))
 
     print("\nFetching servers...")
-    with urllib.request.urlopen(base_url + "v1/servers.json") as resp:
+    req_servers = urllib.request.Request(base_url + "v1/servers.json", headers=req_headers)
+    with urllib.request.urlopen(req_servers) as resp:
         data = json.loads(resp.read().decode('utf-8'))
         servers = data.get('servers', [])
         print(f"Total servers in backend: {len(servers)}")

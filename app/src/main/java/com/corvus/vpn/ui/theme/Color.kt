@@ -2,55 +2,47 @@ package com.corvus.vpn.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Ultra World-Class Cyber Obsidian Palette (ProtonVPN / Cloudflare 1.1.1.1 / NordVPN Style)
-val CyberDarkObsidian = Color(0xFF08090C)   // Deep OLED Carbon Canvas
-val CyberSurfaceDark = Color(0xFF111319)    // Elevated Glassmorphic Container
-val CyberSurfaceVariant = Color(0xFF191C26) // Secondary Glass Container
-val CyberBorderStroke = Color(0xFF242838)   // Thin Glossy Border
+// ============================================================================
+// Crow Palette — Raven Black + Crow-Eye Violet as the Primary Accent
+// (نفس البنية بتاعتك، الألوان اتظبطت تطابق تصميم Corvus Pro / عين الغراب)
+// ============================================================================
 
-// Vibrant High-Tech Electric Accents
-val ElectricCyan = Color(0xFF00F2FE)       // Cyber Electric Cyan Primary
-val ElectricBlue = Color(0xFF38BDF8)       // Ocean Blue Secondary
-val ElectricNeonGreen = Color(0xFF00E676)  // Radiant Neon Emerald (Connected)
-val GlowingAmber = Color(0xFFFFB300)       // Warm Amber (Connecting)
-val CyberCrimson = Color(0xFFFF3366)        // Electric Crimson (Error/Disconnect)
-val RoyalPurple = Color(0xFF8B5CF6)         // Accent Royal Violet
-val PureGold = Color(0xFFFFD700)            // Pure Gold VIP
+val CrowBlack          = Color(0xFF0A0A0D) // Void Black Canvas — نفس --void بالـ mock
+val CrowSurface        = Color(0xFF121117) // Elevated Surface Container — --feather-1
+val CrowCore           = Color(0xFF0D0C11) // Inner Core Surface — أغمق شوية من الـ surface
+val CrowBorder         = Color(0xFF211F2C) // Feather Border Stroke — تباين هادي على الأسود
 
-// Crisp Text Tokens
-val TextPrimaryWhite = Color(0xFFFAFAFA)    // 98% Pure Crisp White
-val TextSecondaryMuted = Color(0xFF8E95A5)  // Cool Muted Slate
+val CrowText           = Color(0xFFEEECE6) // Primary Bone White Text — --bone
+val CrowMuted          = Color(0xFF9C98AB) // Smoke Gray Muted Text — --smoke
+val CrowFaint          = Color(0xFF46435C) // Dark Violet-Slate Faint Text
 
-// Light Mode Tokens (Clean White Glass)
-val LightCanvas = Color(0xFFF4F6F9)
-val LightCard = Color(0xFFFFFFFF)
-val LightSurfaceVariant = Color(0xFFEAEFF5)
-val LightText = Color(0xFF0F172A)
-val LightSecondaryText = Color(0xFF64748B)
-val LightAccent = Color(0xFF0284C7)
-val LightAccentContainer = Color(0xFFE0F2FE)
-val LightSuccess = ElectricNeonGreen
-val LightDanger = CyberCrimson
-val LightOutline = Color(0xFFCBD5E1)
+val CrowAccent         = Color(0xFF7C6CF0) // Crow-Eye Violet Accent — --violet
+val CrowAccentText     = Color(0xFFA79CF7) // Lighter Violet Text
+val CrowAccentBorder   = Color(0xFF2A2440) // Dark Accent Border
+val CrowAccentGlow     = Color(0xFF3E3470) // Ambient Eye Glow
 
-// Dark Mode Color Tokens
-val DarkCanvas = CyberDarkObsidian
-val DarkCard = CyberSurfaceDark
-val DarkSurfaceVariant = CyberSurfaceVariant
-val DarkText = TextPrimaryWhite
-val DarkSecondaryText = TextSecondaryMuted
-val DarkAccent = ElectricCyan
-val DarkAccentContainer = Color(0xFF0C2A38)
-val DarkSuccess = ElectricNeonGreen
-val DarkDanger = CyberCrimson
-val DarkOutline = CyberBorderStroke
+val CrowRingOuterOff   = Color(0xFF16151C) // --feather-2 tone
+val CrowRingInnerOff   = Color(0xFF1D1B26)
+val CrowRingOuterOn    = Color(0xFF2A2440)
+val CrowRingInnerOn    = Color(0xFF453B85)
 
-// Latency Color Helper (Green <= 99ms, Yellow <= 249ms, Red >= 250ms)
+val CrowButtonRingOff  = Color(0xFF2E2A4C)
+val CrowLogoOff        = Color(0xFF847E9C)
+val CrowLogoOn         = Color(0xFFE6E1FF)
+val CrowDotOff         = Color(0xFF5C5771)
+
+// لمسة ذهبية (Best Value / تفاصيل فاخرة) — --gold بالـ mock
+val CrowGold           = Color(0xFFC9A23A)
+
+// لمسة حمراء نادرة (تحذيرات / حالة خطأ) — --blood بالـ mock
+val CrowBlood          = Color(0xFF7A2033)
+
+// Latency Color Helper (Crow Accent للبينج الكويس، Gold للمتوسط، Blood للعالي)
 fun getLatencyColor(pingMs: Int?): Color {
-    if (pingMs == null || pingMs <= 0) return DarkSecondaryText
+    if (pingMs == null || pingMs <= 0) return CrowMuted
     return when (pingMs) {
-        in 0..99 -> ElectricNeonGreen
-        in 100..249 -> PureGold
-        else -> CyberCrimson
+        in 0..149 -> CrowAccent
+        in 150..299 -> CrowGold
+        else -> CrowBlood
     }
 }

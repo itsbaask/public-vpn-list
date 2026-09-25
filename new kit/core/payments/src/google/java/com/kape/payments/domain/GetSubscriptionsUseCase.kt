@@ -1,0 +1,11 @@
+package com.kape.payments.domain
+
+import com.kape.data.model.Subscription
+import org.koin.core.annotation.Singleton
+
+@Singleton
+class GetSubscriptionsUseCase(
+    private val source: SubscriptionDataSource,
+) {
+    suspend fun getVpnSubscriptions(): List<Subscription> = source.getAvailableVpnSubscriptions()
+}

@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Corvus VPN</string>
     <string name="status_connected">Verbunden</string>
@@ -10,6 +11,8 @@
     <string name="persistent_notification">Dauerhafte Benachrichtigung</string>
     <string name="about">Über Uns</string>
     <string name="my_ip">Meine IP-Adresse</string>
+    <string name="language">Sprache</string>
+    <string name="select_language">Sprache auswählen</string>
     <string name="ip_address">IP-Adresse</string>
     <string name="location">Standort</string>
     <string name="isp">Internet-Anbieter</string>
@@ -64,6 +67,53 @@
     <string name="section_custom_ovpn">OPENVPN (.OVPN) IMPORTIEREN</string>
     <string name="section_info_diagnostics">INFORMATION &amp; DIAGNOSE</string>
     <string name="custom_ovpn_subtitle">30 Min. Zugriff pro Sitzung (Werbung zum Importieren ansehen)</string>
-    <string name="shield_protected_text">🛡️ Netzwerk geschützt durch Corvus Raven Schild</string>
-    <string name="premium_secured_text">Sicheres Corvus Raven Premium-Netzwerk</string>
-</resources>
+    <string name="shield_protected_text">🛡️ Netzwerk geschützt durch Corvus Schild</string>
+    <string name="premium_secured_text">Sicheres Corvus Premium-Netzwerk</string>
+    <string name="protocol_mode_title">Protokoll &amp; Modus</string>
+    <string name="smart_mode">Smart-Modus</string>
+    <string name="smart_mode_desc">Automatische Auswahl &amp; sicheres Split-Tunneling</string>
+    <string name="openvpn_mode">OpenVPN</string>
+    <string name="openvpn_mode_desc">Hochsicheres OpenVPN-Protokoll</string>
+    <string name="wireguard_mode">WireGuard</string>
+    <string name="wireguard_mode_desc">Ultraschnelles WireGuard-Protokoll</string>
+    <string name="select_location">Standort auswählen</string>
+    <string name="ping_label">Ping</string>
+    <string name="download_speed">Download</string>
+    <string name="upload_speed">Upload</string>
+    <string name="vip_privileges">VIP-Privilegien</string>
+    <string name="vip_membership">VIP-Mitgliedschaft</string>
+    <string name="unlock_sovereign_features">Alle souveränen Funktionen freischalten</string>
+    <string name="free_tier">Kostenlos</string>
+    <string name="vip_tier">VIP</string>
+    <string name="speed_feature">Geschwindigkeit</string>
+    <string name="corvus_ultra_fast">Corvus Ultraschnell</string>
+    <string name="locations_feature">Standorte</string>
+    <string name="global_servers_feature">Globale Server</string>
+    <string name="no_ads_feature">Keine Werbung</string>
+    <string name="vip_dedicated_lines">VIP-Standleitungen</string>
+    <string name="priority_support">24/7 Priority-Support</string>
+    <string name="yearly_pass">Jahrespass</string>
+    <string name="monthly_pass">Monatspass</string>
+    <string name="weekly_pass">Wochenpass</string>
+    <string name="unlock_vip">VIP freischalten</string>
+    <string name="restore_purchase">Kauf wiederherstellen</string>
+    <string name="auto_renewable_disclaimer">Automatisch verlängerbares Abonnement. Jederzeit in Google Play kündbar.</string>
+    <string name="all_servers">Alle Server</string>
+    <string name="search_servers">Server suchen...</string>
+    <string name="version_label">Version</string>
+    <string name="close_button">Schließen</string>
+    <string name="about_title">Über</string>
+    <string name="about_description">Corvus VPN bietet eine sichere, schnelles und verschlüsselte Verbindung zum Internet. Entwickelt nach erstklassigen Datenschutzstandards.</string>
+    <string name="copyright_text">© 2026 Corvus Inc.</string>
+    <string name="upgrade_now">Jetzt upgraden!</string>
+    <string name="enjoy_exclusive_privileges">Exklusive Privilegien genießen</string>
+    <string name="cancel_button">Abbrechen</string>
+    <string name="best_value_badge">BESTE WAHL</string>
+    <string name="popular_badge">BELIEBT</string>
+    <string name="ultra_fast_premium_nodes">Ultraschnelle Premium-Knoten. Upgrade, um alle freizuschalten!</string>
+    <string name="countries_count">%d+ Länder</string>
+    <string name="nodes_count">%d+ Knoten</string>
+    <string name="yearly_period_info">Mo — Sparen 58% / 4,16 $</string>
+    <string name="monthly_period_info">Monat / 9,99 $</string>
+    <string name="weekly_period_info">Woche / 4,99 $</string>
+<string name="all_filter">Alle</string><string name="encrypted_line">Verschlüsselte Leitung</string><string name="limited_label">Begrenzt</string><string name="free_nodes_label">Kostenlose Knoten</string><string name="standard_label">Standard</string><string name="continent_europe">Europa</string><string name="continent_asia">Asien</string><string name="continent_america">Amerika</string><string name="continent_africa">Afrika</string><string name="continent_oceania">Ozeanien</string><string name="continent_other">Andere</string><string name="feature_speed">Geschwindigkeit</string><string name="feature_locations">Standorte</string><string name="feature_global_servers">Globale Server</string><string name="feature_no_ads">Keine Werbung</string><string name="feature_dedicated_lines">VIP-Standleitungen</string><string name="feature_priority_support">24/7 Priority-Support</string><string name="free_premium_label">Kostenloses Premium</string></resources>

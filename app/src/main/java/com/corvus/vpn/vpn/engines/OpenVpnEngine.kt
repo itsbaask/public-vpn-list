@@ -107,7 +107,7 @@ class OpenVpnEngine @Inject constructor(
             ProfileManager.setConnectedVpnProfile(context, vp)
 
             val launchCtx = activityContext ?: context
-            VPNLaunchHelper.startOpenVpn(vp, launchCtx, "AppConnection", true)
+            VPNLaunchHelper.startOpenVpn(vp, launchCtx, "AppConnection", false)
 
             Result.success(Unit)
         } catch (e: Throwable) {

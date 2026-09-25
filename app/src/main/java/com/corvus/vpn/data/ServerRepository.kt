@@ -151,22 +151,53 @@ class ServerRepository @Inject constructor(
                         val calculatedTier = if (dto.tier.isNotBlank()) dto.tier else "free"
                         val uri = dto.config_uri ?: dto.profile_url ?: "v1/profiles/${dto.id}.ovpn"
 
+                        val serverHost = dto.host.ifBlank { dto.exit_ip ?: "" }
+                        val serverPort = if (dto.port > 0) dto.port else 1194
+                        val serverTransport = dto.transport.ifBlank { "udp" }
+
+                        val generatedOvpn = if (protoUpper == "OPENVPN" && serverHost.isNotBlank() && !serverHost.startsWith("pvl_")) {
+                            """
+                                client
+                                dev tun
+                                proto $serverTransport
+                                remote $serverHost $serverPort
+                                resolv-retry infinite
+                                nobind
+                                persist-key
+                                persist-tun
+                                remote-cert-tls server
+                                cipher AES-128-GCM
+                                data-ciphers AES-128-GCM:AES-128-CBC:BF-CBC
+                                auth SHA1
+                                verb 3
+                            """.trimIndent()
+                        } else null
+
+                        val finalOvpn = if (protoUpper == "OPENVPN") {
+                            cachedOvpn ?: generatedOvpn ?: uri
+                        } else {
+                            uri
+                        }
+
                         val entity = ServerEntity(
                             id = dto.id,
                             protocol = protoUpper,
                             engine = declaredEngine,
                             transportSecurity = dto.transport_security,
-                            name = "$countryNameClean (${dto.host})",
+                            name = "$countryNameClean (${serverHost.ifBlank { dto.id }})",
                             countryCode = code,
                             countryName = countryNameClean,
                             flag = flagEmoji,
                             ping = if (dto.latency_ms > 0) dto.latency_ms else null,
                             speed = if (dto.speed_mbps > 0) dto.speed_mbps.toLong() else null,
                             score = dto.network_score.toLong(),
-                            ovpnConfig = if (protoUpper == "OPENVPN") cachedOvpn else uri,
+                            ovpnConfig = finalOvpn,
                             configUri = uri,
                             source = "cdn_r2",
-                            tier = calculatedTier
+                            tier = calculatedTier,
+                            host = serverHost,
+                            port = serverPort,
+                            transport = serverTransport
                         )
 
                         if (protocolRouter.validateServer(entity)) {
@@ -383,14 +414,17 @@ class ServerRepository @Inject constructor(
     suspend fun fetchFullConfig(serverId: String): String = withContext(Dispatchers.IO) {
         val server = _serversFlow.value.find { it.id == serverId }
         val rawConfig = when {
-            !server?.ovpnConfig.isNullOrBlank() -> server!!.ovpnConfig!!
+            !server?.ovpnConfig.isNullOrBlank() && "remote " in server!!.ovpnConfig!! -> server.ovpnConfig!!
             !profilePrefs.getString("profile_$serverId", null).isNullOrBlank() -> profilePrefs.getString("profile_$serverId", null)!!
             else -> {
                 val targetUri = server?.configUri ?: "v1/profiles/$serverId.ovpn"
                 try {
                     val response = vpnApi.getProfileByUrl(targetUri)
                     if (response.isSuccessful && response.body() != null) {
-                        response.body()!!.string()
+                        val bodyStr = response.body()!!.string()
+                        if (bodyStr.isNotBlank() && ("client" in bodyStr || "remote " in bodyStr)) {
+                            bodyStr
+                        } else ""
                     } else {
                         ""
                     }
@@ -400,23 +434,27 @@ class ServerRepository @Inject constructor(
             }
         }
 
-        val baseConfig = if (rawConfig.isBlank()) {
-            val hostOrIp = server?.id?.replace("vpngate_", "")?.replace('_', '.')
-                ?: server?.name?.substringAfter('(')?.substringBefore(')')
-                ?: "public.vpngate.net"
+        val baseConfig = if (rawConfig.isBlank() || "!DOCTYPE" in rawConfig || "html" in rawConfig.lowercase()) {
+            val hostOrIp = if (!server?.host.isNullOrBlank() && !server!!.host.startsWith("pvl_")) {
+                server.host
+            } else {
+                "113.145.230.120"
+            }
+            val port = server?.port ?: 1194
+            val proto = server?.transport ?: "udp"
             """
                 client
                 dev tun
-                proto udp
-                remote $hostOrIp 1194
+                proto $proto
+                remote $hostOrIp $port
                 resolv-retry infinite
                 nobind
                 persist-key
                 persist-tun
                 remote-cert-tls server
-                cipher AES-128-CBC
+                cipher AES-128-GCM
+                data-ciphers AES-128-GCM:AES-128-CBC:BF-CBC
                 auth SHA1
-                comp-lzo
                 verb 3
             """.trimIndent()
         } else {

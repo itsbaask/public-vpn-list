@@ -21,5 +21,8 @@ data class ServerEntity(
     val ovpnConfig: String? = null,
     val configUri: String? = null,
     val source: String = "aggregator",
-    val tier: String = "free"
+    val tier: String = "free",
+    val host: String = "",
+    val port: Int = 1194,
+    val transport: String = "udp"
 )

@@ -7,7 +7,7 @@ import logging
 import requests
 from pathlib import Path
 from typing import Dict, Any, List, Set, Optional, Tuple
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, urlsplit, urlunsplit
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -27,6 +27,319 @@ class SourceUnavailableError(Exception):
 class SourceIncompleteError(Exception):
     """Raised when harvested server count is below minimum expected threshold."""
     pass
+
+# ============================================================================
+# Enterprise Global Country Normalization Engine (195 ISO Countries)
+# ============================================================================
+
+class CountryNormalizer:
+    # Official ISO 3166-1 alpha-2 map: Code -> (Name, Flag)
+    ISO_COUNTRIES: Dict[str, Tuple[str, str]] = {
+        "AF": ("Afghanistan", "🇦🇫"),
+        "AL": ("Albania", "🇦🇱"),
+        "DZ": ("Algeria", "🇩🇿"),
+        "AD": ("Andorra", "🇦🇩"),
+        "AO": ("Angola", "🇦🇴"),
+        "AG": ("Antigua and Barbuda", "🇦🇬"),
+        "AR": ("Argentina", "🇦🇷"),
+        "AM": ("Armenia", "🇦🇲"),
+        "AU": ("Australia", "🇦🇺"),
+        "AT": ("Austria", "🇦🇹"),
+        "AZ": ("Azerbaijan", "🇦🇿"),
+        "BS": ("Bahamas", "🇧🇸"),
+        "BH": ("Bahrain", "🇧🇭"),
+        "BD": ("Bangladesh", "🇧🇩"),
+        "BB": ("Barbados", "🇧🇧"),
+        "BY": ("Belarus", "🇧🇾"),
+        "BE": ("Belgium", "🇧🇪"),
+        "BZ": ("Belize", "🇧🇿"),
+        "BJ": ("Benin", "🇧🇯"),
+        "BT": ("Bhutan", "🇧🇹"),
+        "BO": ("Bolivia", "🇧🇴"),
+        "BA": ("Bosnia and Herzegovina", "🇧🇦"),
+        "BW": ("Botswana", "🇧🇼"),
+        "BR": ("Brazil", "🇧🇷"),
+        "BN": ("Brunei", "🇧🇳"),
+        "BG": ("Bulgaria", "🇧🇬"),
+        "BF": ("Burkina Faso", "🇧🇫"),
+        "BI": ("Burundi", "🇧🇮"),
+        "KH": ("Cambodia", "🇰🇭"),
+        "CM": ("Cameroon", "🇨🇲"),
+        "CA": ("Canada", "🇨🇦"),
+        "CV": ("Cape Verde", "🇨🇻"),
+        "CF": ("Central African Republic", "🇨🇫"),
+        "TD": ("Chad", "🇹🇩"),
+        "CL": ("Chile", "🇨🇱"),
+        "CN": ("China", "🇨🇳"),
+        "CO": ("Colombia", "🇨🇴"),
+        "KM": ("Comoros", "🇰🇲"),
+        "CG": ("Congo", "🇨🇬"),
+        "CD": ("Congo (DRC)", "🇨🇩"),
+        "CR": ("Costa Rica", "🇨🇷"),
+        "HR": ("Croatia", "🇭🇷"),
+        "CU": ("Cuba", "🇨🇺"),
+        "CY": ("Cyprus", "🇨🇾"),
+        "CZ": ("Czech Republic", "🇨🇿"),
+        "DK": ("Denmark", "🇩🇰"),
+        "DJ": ("Djibouti", "🇩🇯"),
+        "DM": ("Dominica", "🇩🇲"),
+        "DO": ("Dominican Republic", "🇩🇴"),
+        "EC": ("Ecuador", "🇪🇨"),
+        "EG": ("Egypt", "🇪🇬"),
+        "SV": ("El Salvador", "🇸🇻"),
+        "GQ": ("Equatorial Guinea", "🇬🇶"),
+        "ER": ("Eritrea", "🇪🇷"),
+        "EE": ("Estonia", "🇪🇪"),
+        "SZ": ("Eswatini", "🇸🇿"),
+        "ET": ("Ethiopia", "🇪🇹"),
+        "FJ": ("Fiji", "🇫🇯"),
+        "FI": ("Finland", "🇫🇮"),
+        "FR": ("France", "🇫🇷"),
+        "GA": ("Gabon", "🇬🇦"),
+        "GM": ("Gambia", "🇬🇲"),
+        "GE": ("Georgia", "🇬🇪"),
+        "DE": ("Germany", "🇩🇪"),
+        "GH": ("Ghana", "🇬🇭"),
+        "GR": ("Greece", "🇬🇷"),
+        "GD": ("Grenada", "🇬🇩"),
+        "GT": ("Guatemala", "🇬🇹"),
+        "GN": ("Guinea", "🇬🇳"),
+        "GW": ("Guinea-Bissau", "🇬🇼"),
+        "GY": ("Guyana", "🇬🇾"),
+        "HT": ("Haiti", "🇭🇹"),
+        "HN": ("Honduras", "🇭🇳"),
+        "HK": ("Hong Kong", "🇭🇰"),
+        "HU": ("Hungary", "🇭🇺"),
+        "IS": ("Iceland", "🇮🇸"),
+        "IN": ("India", "🇮🇳"),
+        "ID": ("Indonesia", "🇮🇩"),
+        "IR": ("Iran", "🇮🇷"),
+        "IQ": ("Iraq", "🇮🇶"),
+        "IE": ("Ireland", "🇮🇪"),
+        "IL": ("Israel", "🇮🇱"),
+        "IT": ("Italy", "🇮🇹"),
+        "JM": ("Jamaica", "🇯🇲"),
+        "JP": ("Japan", "🇯🇵"),
+        "JO": ("Jordan", "🇯🇴"),
+        "KZ": ("Kazakhstan", "🇰🇿"),
+        "KE": ("Kenya", "🇰🇪"),
+        "KI": ("Kiribati", "🇰🇮"),
+        "KP": ("North Korea", "🇰🇵"),
+        "KR": ("South Korea", "🇰🇷"),
+        "KW": ("Kuwait", "🇰🇼"),
+        "KG": ("Kyrgyzstan", "🇰🇬"),
+        "LA": ("Laos", "🇱🇦"),
+        "LV": ("Latvia", "🇱🇻"),
+        "LB": ("Lebanon", "🇱🇧"),
+        "LS": ("Lesotho", "🇱🇸"),
+        "LR": ("Liberia", "🇱🇷"),
+        "LY": ("Libya", "🇱🇾"),
+        "LI": ("Liechtenstein", "🇱🇮"),
+        "LT": ("Lithuania", "🇱🇹"),
+        "LU": ("Luxembourg", "🇱🇺"),
+        "MO": ("Macau", "🇲🇴"),
+        "MG": ("Madagascar", "🇲🇬"),
+        "MW": ("Malawi", "🇲🇼"),
+        "MY": ("Malaysia", "🇲🇾"),
+        "MV": ("Maldives", "🇲🇻"),
+        "ML": ("Mali", "🇲🇱"),
+        "MT": ("Malta", "🇲🇹"),
+        "MH": ("Marshall Islands", "🇲🇭"),
+        "MR": ("Mauritania", "🇲🇷"),
+        "MU": ("Mauritius", "🇲🇺"),
+        "MX": ("Mexico", "🇲🇽"),
+        "FM": ("Micronesia", "🇫🇲"),
+        "MD": ("Moldova", "🇲🇩"),
+        "MC": ("Monaco", "🇲🇨"),
+        "MN": ("Mongolia", "🇲🇳"),
+        "ME": ("Montenegro", "🇲🇪"),
+        "MA": ("Morocco", "🇲🇦"),
+        "MZ": ("Mozambique", "🇲🇿"),
+        "MM": ("Myanmar", "🇲🇲"),
+        "NA": ("Namibia", "🇳🇦"),
+        "NR": ("Nauru", "🇳🇷"),
+        "NP": ("Nepal", "🇳🇵"),
+        "NL": ("Netherlands", "🇳🇱"),
+        "NZ": ("New Zealand", "🇳🇿"),
+        "NI": ("Nicaragua", "🇳🇮"),
+        "NE": ("Niger", "🇳🇪"),
+        "NG": ("Nigeria", "🇳🇬"),
+        "MK": ("North Macedonia", "🇲🇰"),
+        "NO": ("Norway", "🇳🇴"),
+        "OM": ("Oman", "🇴🇲"),
+        "PK": ("Pakistan", "🇵🇰"),
+        "PW": ("Palau", "🇵🇼"),
+        "PS": ("Palestine", "🇵🇸"),
+        "PA": ("Panama", "🇵🇦"),
+        "PG": ("Papua New Guinea", "🇵🇬"),
+        "PY": ("Paraguay", "🇵🇾"),
+        "PE": ("Peru", "🇵🇪"),
+        "PH": ("Philippines", "🇵🇭"),
+        "PL": ("Poland", "🇵🇱"),
+        "PT": ("Portugal", "🇵🇹"),
+        "QA": ("Qatar", "🇶🇦"),
+        "RO": ("Romania", "🇷🇴"),
+        "RU": ("Russia", "🇷🇺"),
+        "RW": ("Rwanda", "🇷🇼"),
+        "KN": ("Saint Kitts and Nevis", "🇰🇳"),
+        "LC": ("Saint Lucia", "🇱🇨"),
+        "VC": ("Saint Vincent and the Grenadines", "🇻🇨"),
+        "WS": ("Samoa", "🇼🇸"),
+        "SM": ("San Marino", "🇸🇲"),
+        "ST": ("Sao Tome and Principe", "🇸🇹"),
+        "SA": ("Saudi Arabia", "🇸🇦"),
+        "SN": ("Senegal", "🇸🇳"),
+        "RS": ("Serbia", "🇷🇸"),
+        "SC": ("Seychelles", "🇸🇨"),
+        "SL": ("Sierra Leone", "🇸🇱"),
+        "SG": ("Singapore", "🇸🇬"),
+        "SK": ("Slovakia", "🇸🇰"),
+        "SI": ("Slovenia", "🇸🇮"),
+        "SB": ("Solomon Islands", "🇸🇧"),
+        "SO": ("Somalia", "🇸🇴"),
+        "ZA": ("South Africa", "🇿🇦"),
+        "SS": ("South Sudan", "🇸🇸"),
+        "ES": ("Spain", "🇪🇸"),
+        "LK": ("Sri Lanka", "🇱🇰"),
+        "SD": ("Sudan", "🇸🇩"),
+        "SR": ("Suriname", "🇸🇷"),
+        "SE": ("Sweden", "🇸🇪"),
+        "CH": ("Switzerland", "🇨🇭"),
+        "SY": ("Syria", "🇸🇾"),
+        "TW": ("Taiwan", "🇹🇼"),
+        "TJ": ("Tajikistan", "🇹🇯"),
+        "TZ": ("Tanzania", "🇹🇿"),
+        "TH": ("Thailand", "🇹🇭"),
+        "TL": ("Timor-Leste", "🇹🇱"),
+        "TG": ("Togo", "🇹🇬"),
+        "TO": ("Tonga", "🇹🇴"),
+        "TT": ("Trinidad and Tobago", "🇹🇹"),
+        "TN": ("Tunisia", "🇹🇳"),
+        "TR": ("Turkey", "🇹🇷"),
+        "TM": ("Turkmenistan", "🇹🇲"),
+        "TV": ("Tuvalu", "🇹🇻"),
+        "UG": ("Uganda", "🇺🇬"),
+        "UA": ("Ukraine", "🇺🇦"),
+        "AE": ("United Arab Emirates", "🇦🇪"),
+        "GB": ("United Kingdom", "🇬🇧"),
+        "US": ("United States", "🇺🇸"),
+        "UY": ("Uruguay", "🇺🇾"),
+        "UZ": ("Uzbekistan", "🇺🇿"),
+        "VU": ("Vanuatu", "🇻🇺"),
+        "VA": ("Vatican City", "🇻🇦"),
+        "VE": ("Venezuela", "🇻🇪"),
+        "VN": ("Vietnam", "🇻🇳"),
+        "YE": ("Yemen", "🇾🇪"),
+        "ZM": ("Zambia", "🇿🇲"),
+        "ZW": ("Zimbabwe", "🇿🇼"),
+    }
+
+    # Common aliases, typos, and variations mapped to ISO code
+    ALIASES: Dict[str, str] = {
+        "UK": "GB",
+        "UNITED KINDOM": "GB",
+        "UNITED KINGDOM": "GB",
+        "GREAT BRITAIN": "GB",
+        "ENGLAND": "GB",
+        "SCOTLAND": "GB",
+        "WALES": "GB",
+        "USA": "US",
+        "UNITED STATES": "US",
+        "UNITED STATES OF AMERICA": "US",
+        "U.S.A.": "US",
+        "U.S.": "US",
+        "AMERICA": "US",
+        "VIETNAM": "VN",
+        "VIET NAM": "VN",
+        "VITE NAM": "VN",
+        "VINTENM": "VN",
+        "TURKEY": "TR",
+        "TURKIYE": "TR",
+        "TÜRKIYE": "TR",
+        "TURKIA": "TR",
+        "RUSSIA": "RU",
+        "RUSSIAN FEDERATION": "RU",
+        "KOREA": "KR",
+        "SOUTH KOREA": "KR",
+        "KOREA REPUBLIC OF": "KR",
+        "REPUBLIC OF KOREA": "KR",
+        "ROK": "KR",
+        "KOREA, REPUBLIC OF": "KR",
+        "UAE": "AE",
+        "UNITED ARAB EMIRATES": "AE",
+        "EMIRATES": "AE",
+        "SAUDI ARABIA": "SA",
+        "KSA": "SA",
+        "KINGDOM OF SAUDI ARABIA": "SA",
+        "CZECHIA": "CZ",
+        "CZECH REPUBLIC": "CZ",
+        "TAIWAN": "TW",
+        "TAIWAN, PROVINCE OF CHINA": "TW",
+        "ROC": "TW",
+        "HONGKONG": "HK",
+        "HONG KONG": "HK",
+        "IRAN": "IR",
+        "IRAN, ISLAMIC REPUBLIC OF": "IR",
+        "PALESTINE": "PS",
+        "STATE OF PALESTINE": "PS",
+        "SYRIA": "SY",
+        "SYRIAN ARAB REPUBLIC": "SY",
+        "MOLDOVA": "MD",
+        "MOLDOVA REPUBLIC OF": "MD",
+        "MOLDOVA, REPUBLIC OF": "MD",
+        "NETHERLANDS": "NL",
+        "HOLLAND": "NL",
+        "DEUTSCHLAND": "DE",
+        "GERMANY": "DE",
+        "BOSNIA": "BA",
+        "BOSNIA AND HERZEGOVINA": "BA",
+        "BOSNIA AND HERZEGOWINA": "BA",
+    }
+
+    @classmethod
+    def normalize(cls, country_raw: str, code_hint: str = "") -> Tuple[str, str, str]:
+        """
+        Normalizes any country input into (iso_code, country_name, flag_emoji).
+        Always returns a valid 2-letter ISO code and clean English country name.
+        """
+        code = (code_hint or "").strip().upper()
+        if code and code in cls.ISO_COUNTRIES:
+            name, flag = cls.ISO_COUNTRIES[code]
+            return code, name, flag
+
+        raw_str = (country_raw or "").strip()
+        if not raw_str:
+            return "UN", "Global / Unknown", "🌐"
+
+        # Check raw code if length is 2
+        if len(raw_str) == 2 and raw_str.upper() in cls.ISO_COUNTRIES:
+            c = raw_str.upper()
+            name, flag = cls.ISO_COUNTRIES[c]
+            return c, name, flag
+
+        # Clean string for regex search
+        clean_upper = re.sub(r'[^A-Z\s]', '', raw_str.upper()).strip()
+        clean_upper = re.sub(r'\s+', ' ', clean_upper)
+
+        # Direct Alias Match
+        if clean_upper in cls.ALIASES:
+            c = cls.ALIASES[clean_upper]
+            name, flag = cls.ISO_COUNTRIES[c]
+            return c, name, flag
+
+        # Match against official country names
+        for iso_code, (official_name, flag) in cls.ISO_COUNTRIES.items():
+            off_upper = official_name.upper()
+            if off_upper == clean_upper or off_upper in clean_upper or clean_upper in off_upper:
+                return iso_code, official_name, flag
+
+        # Fallback partial matching on aliases
+        for alias, iso_code in cls.ALIASES.items():
+            if alias in clean_upper:
+                name, flag = cls.ISO_COUNTRIES[iso_code]
+                return iso_code, name, flag
+
+        return "UN", "Global / Unknown", "🌐"
 
 def is_valid_http_url(url: str) -> bool:
     if not url or not isinstance(url, str):
@@ -85,6 +398,8 @@ class ServerInfo:
         port: int = 1194,
         transport: str = "udp",
         protocol: str = "openvpn",
+        transport_security: str = "",
+        exit_ip: str = "",
         speed_mbps: float = 0.0,
         latency_ms: int = 0,
         network_score: int = 0,
@@ -92,18 +407,26 @@ class ServerInfo:
         checked_at: str = "",
         config_sha256: str = "",
         ovpn_content: str = "",
+        config_uri: str = "",
     ):
         self.source_id = str(source_id).strip()
         self.source_name = str(source_name).strip()
         self.profile_id = str(profile_id).strip() if profile_id else ""
         self.profile_source_url = profile_source_url.strip() if profile_source_url else ""
         self.server_page_url = server_page_url.strip() if server_page_url else ""
-        self.country_code = (country_code or "XX").upper()
-        self.country_name = country_name or "Unknown"
+
+        # Enterprise Country Normalization
+        iso_code, norm_name, flag = CountryNormalizer.normalize(country_name, country_code)
+        self.country_code = iso_code
+        self.country_name = norm_name
+        self.flag = flag
+
         self.host = host or ""
         self.port = int(port or 1194)
         self.transport = (transport or "udp").lower()
         self.protocol = (protocol or "openvpn").lower()
+        self.transport_security = (transport_security or "").lower()
+        self.exit_ip = exit_ip or self.host
         self.speed_mbps = float(speed_mbps or 0.0)
         self.latency_ms = int(latency_ms or 0)
         self.network_score = int(network_score or 0)
@@ -111,9 +434,19 @@ class ServerInfo:
         self.checked_at = checked_at or ""
         self.config_sha256 = config_sha256 or ""
         self.ovpn_content = ovpn_content or ""
+        self.config_uri = config_uri or ""
 
     @property
     def server_id(self) -> str:
+        return self.source_id
+
+    @property
+    def deduplication_key(self) -> str:
+        """Unique key for deduplication across multi-sources"""
+        if self.config_sha256:
+            return f"hash_{self.config_sha256}"
+        if self.host and self.port:
+            return f"{self.protocol}_{self.host.lower()}_{self.port}_{self.transport}"
         return self.source_id
 
     @property
@@ -126,6 +459,9 @@ class ServerInfo:
         return clean_storage_id(self.source_id)
 
     def has_valid_profile_mapping(self) -> bool:
+        if self.protocol != "openvpn":
+            # Modern URI protocols (vless, vmess, shadowsocks, trojan, hysteria2) are valid via config_uri / URL
+            return True
         if self.ovpn_content and len(self.ovpn_content) >= 50:
             return True
         if is_valid_http_url(self.profile_source_url):
@@ -135,6 +471,7 @@ class ServerInfo:
         return False
 
     def to_dict(self) -> Dict[str, Any]:
+        profile_url = f"/v1/profiles/{self.storage_id}.ovpn" if (self.protocol == "openvpn" and self.storage_id) else None
         return {
             "id": self.source_id,
             "source_id": self.source_id,
@@ -144,22 +481,27 @@ class ServerInfo:
             "server_page_url": self.server_page_url,
             "country_code": self.country_code,
             "country_name": self.country_name,
+            "flag": self.flag,
             "host": self.host,
             "port": self.port,
             "transport": self.transport,
             "protocol": self.protocol,
+            "transport_security": self.transport_security,
+            "exit_ip": self.exit_ip,
             "speed_mbps": self.speed_mbps,
             "latency_ms": self.latency_ms,
             "network_score": self.network_score,
             "status": self.status,
             "checked_at": self.checked_at,
             "config_sha256": self.config_sha256,
-            "profile_url": f"/v1/profiles/{self.storage_id}.ovpn" if self.storage_id else None,
+            "config_uri": self.config_uri,
+            "profile_url": profile_url,
             "profile_sha256": self.config_sha256,
         }
 
 class MultiSourceHarvester:
-    def __init__(self, session: Optional[requests.Session] = None):
+    def __init__(self, access_key: Optional[str] = None, session: Optional[requests.Session] = None):
+        self.access_key = access_key or "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
         if session:
             self.session = session
         elif HAS_CLOUDSCRAPER:
@@ -181,76 +523,162 @@ class MultiSourceHarvester:
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/json,*/*;q=0.8",
+            "User-Agent": "PublicVPNList-Enterprise-Sync/1.0",
+            "Accept": "application/json, text/html, */*",
             "Accept-Language": "en-US,en;q=0.9",
         })
 
     def harvest_all_sources(self) -> Dict[str, ServerInfo]:
         """
-        Harvests and aggregates OpenVPN profiles from all requested public sources:
-        1. VPNGate Official API (CSV)
-        2. Auto-OVPN GitHub Repo (JSON/Raw)
-        3. VPNBook Free OpenVPN API & Credentials (https://www.vpnbook.com)
-        4. Riseup VPN (API/Config)
-        5. PublicVPNList Native API & Catalog (https://publicvpnlist.com) [LAST]
+        Harvests, normalizes, and deduplicates VPN servers from all requested multi-sources:
+        1. PublicVPNList Official v1 REST API (All 6 protocols: openvpn, vless, vmess, shadowsocks, trojan, hysteria2)
+        2. VPNGate Official API (CSV)
+        3. Auto-OVPN GitHub Repo (JSON/Raw)
+        4. VPNBook Free OpenVPN API (https://www.vpnbook.com)
+        5. Riseup VPN
+        6. PublicVPNList Legacy Native API (Fallback)
         """
         harvested: Dict[str, ServerInfo] = {}
+        seen_dedup_keys: Set[str] = set()
 
-        # 1. VPNGate Official CSV API
+        def add_server(server: ServerInfo):
+            dedup_key = server.deduplication_key
+            if dedup_key in seen_dedup_keys:
+                existing = harvested.get(server.source_id)
+                if existing and server.speed_mbps > existing.speed_mbps:
+                    harvested[server.source_id] = server
+                return
+            seen_dedup_keys.add(dedup_key)
+            harvested[server.source_id] = server
+
+        # 1. PublicVPNList Official v1 REST API (Primary Multi-Protocol Source)
+        try:
+            pvl_v1_servers = self._fetch_publicvpnlist_v1_api()
+            logger.info(f"PublicVPNList v1 REST API harvested {len(pvl_v1_servers)} active multi-protocol servers.")
+            for s in pvl_v1_servers.values():
+                add_server(s)
+        except Exception as e:
+            logger.warning(f"PublicVPNList v1 REST API harvest error: {e}")
+
+        # 2. VPNGate Official CSV API
         try:
             vpngate_servers = self._fetch_vpngate_csv()
             logger.info(f"VPNGate API harvested {len(vpngate_servers)} active servers with decoded OVPN profiles.")
-            for sid, s in vpngate_servers.items():
-                harvested[sid] = s
+            for s in vpngate_servers.values():
+                add_server(s)
         except Exception as e:
             logger.warning(f"VPNGate API harvest error: {e}")
 
-        # 2. Auto-OVPN GitHub Repo
+        # 3. Auto-OVPN GitHub Repo
         try:
             auto_servers = self._fetch_auto_ovpn_github()
             logger.info(f"Auto-OVPN GitHub harvested {len(auto_servers)} active servers with decoded OVPN profiles.")
-            for sid, s in auto_servers.items():
-                if sid not in harvested:
-                    harvested[sid] = s
+            for s in auto_servers.values():
+                add_server(s)
         except Exception as e:
             logger.warning(f"Auto-OVPN GitHub harvest error: {e}")
 
-        # 3. VPNBook Free OpenVPN API with Embedded Credentials
+        # 4. VPNBook
         try:
             vpnbook_servers = self._fetch_vpnbook()
-            logger.info(f"VPNBook harvested {len(vpnbook_servers)} active servers with auto-login embedded credentials.")
-            for sid, s in vpnbook_servers.items():
-                if sid not in harvested:
-                    harvested[sid] = s
+            logger.info(f"VPNBook harvested {len(vpnbook_servers)} active servers with embedded credentials.")
+            for s in vpnbook_servers.values():
+                add_server(s)
         except Exception as e:
             logger.warning(f"VPNBook harvest error: {e}")
 
-        # 4. Riseup VPN
+        # 5. Riseup VPN
         try:
             riseup_servers = self._fetch_riseup_vpn()
             logger.info(f"Riseup VPN harvested {len(riseup_servers)} servers.")
-            for sid, s in riseup_servers.items():
-                if sid not in harvested:
-                    harvested[sid] = s
+            for s in riseup_servers.values():
+                add_server(s)
         except Exception as e:
             logger.warning(f"Riseup VPN harvest error: {e}")
 
-        # 5. PublicVPNList Native API & Catalog (LAST SOURCE)
+        # 6. PublicVPNList Legacy Native API (Fallback if v1 REST API incomplete)
         try:
             native_servers = self._fetch_publicvpnlist_native()
-            logger.info(f"PublicVPNList Native API harvested {len(native_servers)} active servers.")
-            for sid, s in native_servers.items():
-                if sid not in harvested:
-                    harvested[sid] = s
+            logger.info(f"PublicVPNList Legacy Native API harvested {len(native_servers)} active servers.")
+            for s in native_servers.values():
+                add_server(s)
         except Exception as e:
-            logger.warning(f"PublicVPNList Native API harvest error: {e}")
+            logger.warning(f"PublicVPNList Legacy Native API harvest error: {e}")
 
         if not harvested:
             raise SourceUnavailableError("Failed to harvest servers from any public source.")
 
-        logger.info(f"Multi-source harvesting completed. Total unique servers harvested: {len(harvested)}")
+        logger.info(f"Multi-source harvesting & deduplication completed. Total unique servers harvested: {len(harvested)}")
         return harvested
+
+    def _fetch_publicvpnlist_v1_api(self) -> Dict[str, ServerInfo]:
+        """
+        Fetches multi-protocol servers (openvpn, vless, vmess, shadowsocks, trojan, hysteria2)
+        from publicvpnlist.com/api/v1/servers using the permanent Bearer Key.
+        """
+        servers: Dict[str, ServerInfo] = {}
+        protocols = ["openvpn", "vless", "vmess", "shadowsocks", "trojan", "hysteria2"]
+
+        headers = {
+            "Authorization": f"Bearer {self.access_key}",
+            "Accept": "application/json"
+        }
+
+        for proto in protocols:
+            url = f"https://publicvpnlist.com/api/v1/servers?protocol={proto}&status=online&per_page=100"
+            try:
+                res = self.session.get(url, headers=headers, timeout=(10, 30))
+                if res.status_code == 200:
+                    payload = res.json()
+                    data_list = payload.get("data", [])
+                    for item in data_list:
+                        if not isinstance(item, dict):
+                            continue
+
+                        sid = str(item.get("id") or "").strip()
+                        if not sid:
+                            continue
+
+                        ip = str(item.get("ip") or item.get("exit_ip") or "")
+                        port = int(item.get("port") or 443)
+                        transport = str(item.get("transport") or "tcp").lower()
+                        transport_sec = str(item.get("transport_security") or "")
+                        c_code = str(item.get("country_code") or "").upper()
+                        c_name = str(item.get("country_name") or "")
+
+                        speed = float(item.get("speed_mbps") or item.get("checker_measured_throughput_mbps") or 0.0)
+                        latency = int(item.get("latency_ms") or item.get("checker_measured_tunnel_rtt_ms") or 0)
+                        score = int(item.get("technical_quality_score") or 50)
+
+                        dl_url = str(item.get("config_download_url") or item.get("server_page_url") or "")
+                        config_uri = str(item.get("config_uri") or dl_url)
+                        sha256_hash = str(item.get("config_sha256") or "")
+
+                        server_info = ServerInfo(
+                            source_id=sid,
+                            source_name="publicvpnlist_v1",
+                            profile_source_url=dl_url,
+                            server_page_url=dl_url,
+                            country_code=c_code,
+                            country_name=c_name,
+                            host=ip,
+                            port=port,
+                            transport=transport,
+                            protocol=proto,
+                            transport_security=transport_sec,
+                            exit_ip=ip,
+                            speed_mbps=speed,
+                            latency_ms=latency,
+                            network_score=score,
+                            config_sha256=sha256_hash,
+                            config_uri=config_uri
+                        )
+                        servers[sid] = server_info
+
+            except Exception as e:
+                logger.warning(f"Failed to fetch PublicVPNList v1 protocol {proto}: {e}")
+
+        return servers
 
     def _fetch_publicvpnlist_native(self) -> Dict[str, ServerInfo]:
         url = "https://publicvpnlist.com/local/api/vpn-data.php"
@@ -266,8 +694,6 @@ class MultiSourceHarvester:
                 if not isinstance(item, dict):
                     continue
                 if item.get("active") is not True:
-                    continue
-                if item.get("lastCheckOk") is not True and item.get("checkerStatus") != "tunnel_ok":
                     continue
 
                 sid_num = str(item.get("id", ""))
@@ -313,7 +739,6 @@ class MultiSourceHarvester:
         soup = BeautifulSoup(res.text, "html.parser")
         page_text = soup.get_text()
 
-        # Extract username
         username = "vpnbook"
         user_match = re.search(r'Username\s*([a-zA-Z0-9]+)', page_text, re.I)
         if user_match:
@@ -321,7 +746,6 @@ class MultiSourceHarvester:
             if raw_u.lower().startswith("vpnbook"):
                 username = "vpnbook"
 
-        # Extract password
         password = ""
         pass_match = re.search(r'Password\s*([a-zA-Z0-9]+)', page_text, re.I)
         if pass_match:
@@ -497,58 +921,6 @@ verb 3
                         )
                 except Exception as err:
                     logger.debug(f"Auto-OVPN decode error idx {idx}: {err}")
-
-        return servers
-
-    def _fetch_ipspeed_info(self) -> Dict[str, ServerInfo]:
-        urls = ["https://ipspeed.info/free-openvpn.php", "https://ipspeed.info/"]
-        servers: Dict[str, ServerInfo] = {}
-
-        for url in urls:
-            try:
-                res = self.session.get(url, timeout=(10, 25))
-                if res.status_code == 200:
-                    soup = BeautifulSoup(res.text, "html.parser")
-                    download_re = re.compile(r'/download/(\d+)/?|\.ovpn')
-                    for anchor in soup.select("a[href]"):
-                        href = anchor.get("href", "")
-                        match = download_re.search(href)
-                        if match:
-                            sid_num = match.group(1) if match.group(1) else hashlib.md5(href.encode("utf-8")).hexdigest()[:12]
-                            sid = f"ipspeed_{sid_num}"
-                            full_dl_url = urljoin(url, href)
-                            servers[sid] = ServerInfo(
-                                source_id=sid,
-                                source_name="ipspeed_info",
-                                profile_id=sid_num if sid_num.isdigit() else "",
-                                profile_source_url=full_dl_url,
-                                country_name="Global"
-                            )
-            except Exception as err:
-                logger.debug(f"IPSpeed Info fetch error {url}: {err}")
-
-        return servers
-
-    def _fetch_omg_vpn(self) -> Dict[str, ServerInfo]:
-        url = "https://omgvpn.com/"
-        servers: Dict[str, ServerInfo] = {}
-        try:
-            res = self.session.get(url, timeout=(10, 25))
-            if res.status_code == 200:
-                soup = BeautifulSoup(res.text, "html.parser")
-                for anchor in soup.select("a[href]"):
-                    href = anchor.get("href", "")
-                    if ".ovpn" in href or "/download" in href:
-                        full_url = urljoin(url, href)
-                        sid = f"omg_{hashlib.md5(full_url.encode('utf-8')).hexdigest()[:12]}"
-                        servers[sid] = ServerInfo(
-                            source_id=sid,
-                            source_name="omgvpn",
-                            profile_source_url=full_url,
-                            country_name="Global"
-                        )
-        except Exception as err:
-            logger.debug(f"OMG VPN fetch error: {err}")
 
         return servers
 

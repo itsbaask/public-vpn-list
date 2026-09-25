@@ -45,7 +45,7 @@ class OpenVpnEngine @Inject constructor(
             
             de.blinkt.openvpn.core.Preferences.getDefaultSharedPreferences(context)
                 .edit()
-                .putBoolean("showlogwindow", false)
+                .putBoolean("showlogwindow", true)
                 .putBoolean("disableconfirmation", true)
                 .apply()
         } catch (e: Throwable) {

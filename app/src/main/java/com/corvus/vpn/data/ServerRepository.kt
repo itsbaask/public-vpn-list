@@ -411,6 +411,14 @@ class ServerRepository @Inject constructor(
 
     fun getServers(): List<ServerEntity> = _serversFlow.value
 
+    private fun extractRemoteHostPort(ovpnText: String): Pair<String, Int> {
+        val remoteRegex = Regex("""(?i)^\s*remote\s+([^\s]+)(?:\s+(\d+))?""", RegexOption.MULTILINE)
+        val match = remoteRegex.find(ovpnText)
+        val host = match?.groupValues?.get(1)?.trim() ?: ""
+        val port = match?.groupValues?.get(2)?.toIntOrNull() ?: 1194
+        return Pair(host, port)
+    }
+
     suspend fun fetchFullConfig(serverId: String): String = withContext(Dispatchers.IO) {
         val server = _serversFlow.value.find { it.id == serverId }
         val rawConfig = when {
@@ -423,6 +431,7 @@ class ServerRepository @Inject constructor(
                     if (response.isSuccessful && response.body() != null) {
                         val bodyStr = response.body()!!.string()
                         if (bodyStr.isNotBlank() && ("client" in bodyStr || "remote " in bodyStr)) {
+                            profilePrefs.edit().putString("profile_$serverId", bodyStr).apply()
                             bodyStr
                         } else ""
                     } else {
@@ -434,13 +443,19 @@ class ServerRepository @Inject constructor(
             }
         }
 
+        val (parsedHost, parsedPort) = if (rawConfig.isNotBlank() && "!DOCTYPE" !in rawConfig && "html" !in rawConfig.lowercase()) {
+            extractRemoteHostPort(rawConfig)
+        } else {
+            Pair("", 1194)
+        }
+
         val baseConfig = if (rawConfig.isBlank() || "!DOCTYPE" in rawConfig || "html" in rawConfig.lowercase()) {
-            val hostOrIp = if (!server?.host.isNullOrBlank() && !server!!.host.startsWith("pvl_")) {
-                server.host
-            } else {
-                "113.145.230.120"
+            val hostOrIp = when {
+                parsedHost.isNotBlank() -> parsedHost
+                !server?.host.isNullOrBlank() && !server!!.host.startsWith("pvl_") -> server.host
+                else -> "219.100.37.100"
             }
-            val port = server?.port ?: 1194
+            val port = if (parsedPort > 0) parsedPort else (server?.port ?: 1194)
             val proto = server?.transport ?: "udp"
             """
                 client

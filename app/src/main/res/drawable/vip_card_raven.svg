@@ -1,0 +1,46 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="cardClip">
+      <rect x="8" y="80" width="496" height="360" rx="56" ry="56"/>
+    </clipPath>
+
+    <!-- top band: pure violet theme gradient -->
+    <linearGradient id="bandGradient" x1="0" y1="0" x2="512" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#5B4FC4"/>
+      <stop offset="55%"  stop-color="#7C6CF0"/>
+      <stop offset="100%" stop-color="#A79CF7"/>
+    </linearGradient>
+
+    <!-- thin strip: lighter violet echo -->
+    <linearGradient id="stripGradient" x1="0" y1="0" x2="512" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#A79CF7"/>
+      <stop offset="100%" stop-color="#E6E1FF"/>
+    </linearGradient>
+
+    <!-- card body: dark theme gradient -->
+    <linearGradient id="bodyGradient" x1="0" y1="168" x2="0" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"  stop-color="#121117"/>
+      <stop offset="100%" stop-color="#0A0A0D"/>
+    </linearGradient>
+  </defs>
+
+  <g clip-path="url(#cardClip)">
+    <rect x="8" y="80"  width="496" height="88"  fill="url(#bandGradient)"/>
+    <rect x="8" y="150" width="496" height="18"  fill="url(#stripGradient)"/>
+    <rect x="8" y="168" width="496" height="272" fill="url(#bodyGradient)"/>
+  </g>
+
+  <!-- card outline -->
+  <rect x="8" y="80" width="496" height="360" rx="56" ry="56"
+        fill="none" stroke="#211F2C" stroke-width="4"/>
+
+  <!-- "VIP" wordmark — unified violet accent -->
+  <g fill="none" stroke="#7C6CF0" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M118 240 L166 348 L214 240"/>
+    <line x1="256" y1="238" x2="256" y2="350"/>
+    <path d="M300 350 L300 238 L352 238 Q382 238 382 268 Q382 298 352 298 L300 298"/>
+  </g>
+
+  <!-- period dot -->
+  <rect x="392" y="352" width="40" height="26" rx="13" fill="#7C6CF0"/>
+</svg>

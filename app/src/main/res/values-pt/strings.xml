@@ -61,7 +61,7 @@
     <string name="pro_yearly_desc">POUPE 60% - Valor Máximo</string>
     <string name="continue_button">Continuar</string>
     <string name="section_connection">CONTROLE DE CONEXÃO</string>
-    <string name="section_interface">INTERFACE &amp; TEMA</string>
+    <string name="section_interface">Interface e Tema</string>
     <string name="section_power_features">RECURSOS AVANÇADOS</string>
     <string name="section_speed_notification">BARRA DE NOTIFICAÇÕES &amp; VELOCIDADE</string>
     <string name="section_custom_ovpn">IMPORTAR OPENVPN (.OVPN)</string>

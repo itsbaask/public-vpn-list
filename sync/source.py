@@ -613,11 +613,11 @@ class MultiSourceHarvester:
 
     def _fetch_publicvpnlist_v1_api(self) -> Dict[str, ServerInfo]:
         """
-        Fetches multi-protocol servers (openvpn, vless, vmess, shadowsocks, trojan, hysteria2)
+        Fetches multi-protocol servers (vless, vmess, shadowsocks, trojan, hysteria2)
         from publicvpnlist.com/api/v1/servers using the permanent Bearer Key.
         """
         servers: Dict[str, ServerInfo] = {}
-        protocols = ["openvpn", "vless", "vmess", "shadowsocks", "trojan", "hysteria2"]
+        protocols = ["vless", "vmess", "shadowsocks", "trojan", "hysteria2"]
 
         headers = {
             "Authorization": f"Bearer {self.access_key}",
@@ -635,6 +635,10 @@ class MultiSourceHarvester:
                         if not isinstance(item, dict):
                             continue
 
+                        dl_url = str(item.get("config_download_url") or "").strip()
+                        if not dl_url:
+                            continue
+
                         sid = str(item.get("id") or "").strip()
                         if not sid:
                             continue
@@ -650,7 +654,6 @@ class MultiSourceHarvester:
                         latency = int(item.get("latency_ms") or item.get("checker_measured_tunnel_rtt_ms") or 0)
                         score = int(item.get("technical_quality_score") or 50)
 
-                        dl_url = str(item.get("config_download_url") or item.get("server_page_url") or "")
                         config_uri = str(item.get("config_uri") or dl_url)
                         sha256_hash = str(item.get("config_sha256") or "")
 

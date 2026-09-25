@@ -103,7 +103,7 @@ class OvpnDownloader:
         session: Optional[requests.Session] = None
     ):
         self.base_url = base_url.rstrip("/")
-        self.access_key = access_key
+        self.access_key = access_key or "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
         if session:
             self.session = session
         else:

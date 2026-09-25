@@ -3,6 +3,11 @@ package com.corvus.vpn.vpn.engines
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.corvus.vpn.data.ServerEntity
+import com.corvus.vpn.data.ServerRepository
+import com.corvus.vpn.vpn.model.ConnectionStats
+import com.corvus.vpn.vpn.model.VpnState
+import com.corvus.vpn.vpn.model.VpnStats
 import de.blinkt.openvpn.VpnProfile
 import de.blinkt.openvpn.core.ConfigParser
 import de.blinkt.openvpn.core.ConnectionStatus
@@ -19,63 +24,128 @@ import javax.inject.Singleton
 
 @Singleton
 class OpenVpnEngine @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val serverRepository: ServerRepository
 ) : VpnEngine, VpnStatus.StateListener {
 
     private val _legacyEngineState = MutableStateFlow(ConnectionStatus.LEVEL_NOTCONNECTED)
-    override val legacyEngineState: StateFlow<ConnectionStatus> = _legacyEngineState.asStateFlow()
+    val legacyEngineState: StateFlow<ConnectionStatus> = _legacyEngineState.asStateFlow()
+
+    private val _state = MutableStateFlow<VpnState>(VpnState.Idle)
+    private val stats = VpnStats()
+    private var activeServer: ServerEntity? = null
+    private var running = false
+    private var connectionTimeoutJob: Job? = null
 
     init {
-        VpnStatus.addStateListener(this)
-        val active = VpnStatus.isVPNActive()
-        _legacyEngineState.value = if (active) ConnectionStatus.LEVEL_CONNECTED else ConnectionStatus.LEVEL_NOTCONNECTED
-        
-        de.blinkt.openvpn.core.Preferences.getDefaultSharedPreferences(context)
-            .edit()
-            .putBoolean("showlogwindow", false)
-            .putBoolean("disableconfirmation", true)
-            .apply()
+        try {
+            VpnStatus.addStateListener(this)
+            val active = VpnStatus.isVPNActive()
+            _legacyEngineState.value = if (active) ConnectionStatus.LEVEL_CONNECTED else ConnectionStatus.LEVEL_NOTCONNECTED
+            
+            de.blinkt.openvpn.core.Preferences.getDefaultSharedPreferences(context)
+                .edit()
+                .putBoolean("showlogwindow", false)
+                .putBoolean("disableconfirmation", true)
+                .apply()
+        } catch (e: Throwable) {
+            Log.e("OpenVpnEngine", "Error in init", e)
+        }
     }
 
-    override fun start(config: String, serverName: String, activityContext: Context?) {
-        Log.d("OpenVpnEngine", "Start requested for $serverName")
-        if (config.isEmpty()) return
-
+    override suspend fun start(server: ServerEntity, activityContext: Context?): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            Log.d("OpenVpnEngine", "Start requested for server=${server.name}")
+            activeServer = server
+            _state.value = VpnState.Connecting(server)
+            running = true
+
+            // 20-second connection timeout watchdog
+            connectionTimeoutJob?.cancel()
+            connectionTimeoutJob = CoroutineScope(Dispatchers.Main).launch {
+                delay(20000L)
+                val currentState = _state.value
+                if (currentState is VpnState.Connecting) {
+                    Log.w("OpenVpnEngine", "Connection timeout reached for server=${server.name}")
+                    stop()
+                    _state.value = VpnState.Error("Connection timeout. Server unreachable or blocked.")
+                }
+            }
+
+            val config = serverRepository.fetchFullConfig(server.id)
+            if (config.isBlank()) {
+                connectionTimeoutJob?.cancel()
+                _state.value = VpnState.Error("Empty OpenVPN configuration")
+                return@withContext Result.failure(IllegalStateException("Empty OpenVPN configuration"))
+            }
+
             val cp = ConfigParser()
             cp.parseConfig(StringReader(config))
             val vp = cp.convertProfile()
-            vp.mName = serverName
+            vp.mName = server.name
 
-            if ("auth-user-pass" in config.lowercase()) {
+            // Prevent KeyChain null alias crash
+            if (vp.mAlias == null) {
+                vp.mAlias = "vpn"
+            }
+            if (vp.mAuthenticationType == VpnProfile.TYPE_KEYSTORE || (vp.mClientCertFilename.isNullOrEmpty() && vp.mPKCS12Filename.isNullOrEmpty() && vp.mAlias.isNullOrEmpty())) {
+                vp.mAuthenticationType = VpnProfile.TYPE_USERPASS
+            }
+
+            if ("auth-user-pass" in config.lowercase() || vp.mUsername.isNullOrEmpty()) {
                 if (vp.mUsername.isNullOrEmpty()) vp.mUsername = "vpn"
                 if (vp.mPassword.isNullOrEmpty()) vp.mPassword = "vpn"
                 vp.mAuthenticationType = VpnProfile.TYPE_USERPASS
             }
 
             vp.mAuthRetry = VpnProfile.AUTH_RETRY_NOINTERACT
-            vp.mUseLegacyProvider = true // Enable OpenSSL legacy provider for VPNGate cipher compatibility
+            vp.mUseLegacyProvider = true
 
             val pm = ProfileManager.getInstance(context)
             pm.addProfile(vp)
             ProfileManager.saveProfile(context, vp)
             ProfileManager.setConnectedVpnProfile(context, vp)
 
-            val launchContext = activityContext ?: context
-            VPNLaunchHelper.startOpenVpn(vp, launchContext, "AppConnection", true)
-            
-        } catch (e: Exception) {
-            Log.e("OpenVpnEngine", "Parsing failed", e)
+            val launchCtx = activityContext ?: context
+            VPNLaunchHelper.startOpenVpn(vp, launchCtx, "AppConnection", true)
+
+            Result.success(Unit)
+        } catch (e: Throwable) {
+            connectionTimeoutJob?.cancel()
+            Log.e("OpenVpnEngine", "OpenVPN start failed for server=${server.id}", e)
+            _state.value = VpnState.Error("OpenVPN start failed: ${e.localizedMessage ?: "Unknown"}")
+            Result.failure(e)
         }
     }
 
-    override fun stop() {
-        Log.d("OpenVpnEngine", "Stop requested")
-        val stopIntent = Intent(context, OpenVPNService::class.java)
-        stopIntent.action = OpenVPNService.DISCONNECT_VPN
-        context.startService(stopIntent)
-        ProfileManager.setConntectedVpnProfileDisconnected(context)
+    override suspend fun stop() = withContext(Dispatchers.IO) {
+        try {
+            connectionTimeoutJob?.cancel()
+            connectionTimeoutJob = null
+            Log.d("OpenVpnEngine", "Stop requested")
+            running = false
+            val stopIntent = Intent(context, OpenVPNService::class.java)
+            stopIntent.action = OpenVPNService.DISCONNECT_VPN
+            context.startService(stopIntent)
+            ProfileManager.setConntectedVpnProfileDisconnected(context)
+            _state.value = VpnState.Idle
+            activeServer = null
+        } catch (e: Throwable) {
+            Log.e("OpenVpnEngine", "Error in stop", e)
+        }
+        Unit
     }
+
+    override suspend fun restart(server: ServerEntity, activityContext: Context?): Result<Unit> {
+        stop()
+        return start(server, activityContext)
+    }
+
+    override fun isRunning(): Boolean = running
+
+    override fun observeState(): Flow<VpnState> = _state.asStateFlow()
+
+    override fun getStats(): VpnStats = stats
 
     override fun updateState(
         state: String,
@@ -84,9 +154,52 @@ class OpenVpnEngine @Inject constructor(
         level: ConnectionStatus,
         intent: Intent?
     ) {
-        Log.d("OpenVpnEngine", "State update: $state ($level)")
-        _legacyEngineState.value = level
+        try {
+            Log.d("OpenVpnEngine", "State update: $state ($level) - Message: $logmessage")
+            _legacyEngineState.value = level
+
+            val server = activeServer
+            if (server != null) {
+                when (level) {
+                    ConnectionStatus.LEVEL_CONNECTED -> {
+                        connectionTimeoutJob?.cancel()
+                        connectionTimeoutJob = null
+                        running = true
+                        _state.value = VpnState.Connected(server, System.currentTimeMillis(), ConnectionStats())
+                    }
+                    ConnectionStatus.LEVEL_NOTCONNECTED -> {
+                        if (_state.value is VpnState.Disconnecting) {
+                            connectionTimeoutJob?.cancel()
+                            connectionTimeoutJob = null
+                            running = false
+                            _state.value = VpnState.Idle
+                        }
+                    }
+                    ConnectionStatus.LEVEL_AUTH_FAILED -> {
+                        connectionTimeoutJob?.cancel()
+                        connectionTimeoutJob = null
+                        running = false
+                        _state.value = VpnState.Error("Authentication failed")
+                    }
+                    ConnectionStatus.LEVEL_NONETWORK -> {
+                        connectionTimeoutJob?.cancel()
+                        connectionTimeoutJob = null
+                        running = false
+                        _state.value = VpnState.Error("No network connection")
+                    }
+                    else -> {}
+                }
+            }
+        } catch (e: Throwable) {
+            Log.e("OpenVpnEngine", "Error in updateState", e)
+        }
     }
 
-    override fun setConnectedVPN(uuid: String?) {}
+    override fun setConnectedVPN(uuid: String?) {
+        try {
+            // No-op
+        } catch (e: Throwable) {
+            // Ignored
+        }
+    }
 }

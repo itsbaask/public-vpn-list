@@ -24,7 +24,7 @@ class Ikev2Engine @Inject constructor(
     private var running = false
     private val stats = VpnStats()
 
-    override suspend fun start(server: ServerEntity): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun start(server: ServerEntity, activityContext: Context?): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             Log.d("Ikev2Engine", "Starting IKEv2 engine for server=${server.name} (Sanitized)")
             _state.value = VpnState.Connecting(server)
@@ -45,9 +45,9 @@ class Ikev2Engine @Inject constructor(
         _state.value = VpnState.Idle
     }
 
-    override suspend fun restart(server: ServerEntity): Result<Unit> {
+    override suspend fun restart(server: ServerEntity, activityContext: Context?): Result<Unit> {
         stop()
-        return start(server)
+        return start(server, activityContext)
     }
 
     override fun isRunning(): Boolean = running

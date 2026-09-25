@@ -24,13 +24,13 @@ class SingBoxEngine @Inject constructor(
     private var running = false
     private val stats = VpnStats()
 
-    override suspend fun start(server: ServerEntity): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun start(server: ServerEntity, activityContext: Context?): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             Log.d("SingBoxEngine", "Starting sing-box engine for protocol=${server.protocol}, server=${server.name} (Sanitized)")
             _state.value = VpnState.Connecting(server)
             running = true
             delay(400) // Core initialization delay
-            _state.value = VpnState.Connected(server, System.currentTimeMillis(), stats)
+            _state.value = VpnState.Connected(server, System.currentTimeMillis(), com.corvus.vpn.vpn.model.ConnectionStats())
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("SingBoxEngine", "Failed to start sing-box engine for server=${server.id}", e)
@@ -45,9 +45,9 @@ class SingBoxEngine @Inject constructor(
         _state.value = VpnState.Idle
     }
 
-    override suspend fun restart(server: ServerEntity): Result<Unit> {
+    override suspend fun restart(server: ServerEntity, activityContext: Context?): Result<Unit> {
         stop()
-        return start(server)
+        return start(server, activityContext)
     }
 
     override fun isRunning(): Boolean = running

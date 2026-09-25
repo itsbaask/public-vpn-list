@@ -46,6 +46,7 @@ data class ServerDto(
     val port: Int = 1194,
     val transport: String = "udp",
     val protocol: String = "openvpn",
+    val engine: String? = null,
     val transport_security: String? = null,
     val exit_ip: String? = null,
     val speed_mbps: Float = 0f,

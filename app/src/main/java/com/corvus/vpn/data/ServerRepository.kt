@@ -479,6 +479,12 @@ class ServerRepository @Inject constructor(
         val lower = baseConfig.lowercase()
         val finalConfig = buildString {
             append(baseConfig)
+            if ("redirect-gateway" !in lower) {
+                append("\nredirect-gateway def1\n")
+            }
+            if ("dhcp-option dns" !in lower) {
+                append("\ndhcp-option DNS 8.8.8.8\ndhcp-option DNS 1.1.1.1\n")
+            }
             if ("<ca>" !in lower && "ca " !in lower) {
                 append("\n<ca>\n-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJAK93r1234567890\n-----END CERTIFICATE-----\n</ca>\n")
             }

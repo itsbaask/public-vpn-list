@@ -168,18 +168,19 @@ class OvpnDownloader:
                 content=minified
             )
 
-        # Priority 0.5: Native PublicVPNList Token Flow
+        # Priority 0.5: Native PublicVPNList Token Flow / Direct Download Scraping
         profile_id = getattr(target, "profile_id", "") or extract_numeric_profile_id(getattr(target, "profile_source_url", "")) or extract_numeric_profile_id(source_id)
         source_name = str(getattr(target, "source_name", ""))
         target_url_check = str(getattr(target, "profile_source_url", ""))
 
         if profile_id and profile_id.isdigit() and ("publicvpnlist" in source_name or "publicvpnlist.com" in target_url_check):
             token_url = f"{self.base_url}/get_token.php"
+            page_url = f"{self.base_url}/download/{profile_id}/"
             token_headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
                 "X-Requested-With": "XMLHttpRequest",
-                "Accept": "application/json",
-                "Referer": f"{self.base_url}/download/{profile_id}/"
+                "Accept": "application/json, text/html, */*",
+                "Referer": page_url
             }
 
             for attempt in range(1, 8):
@@ -192,12 +193,26 @@ class OvpnDownloader:
                             time.sleep(1.5 - diff)
                         OvpnDownloader._last_pvl_request_time = time.time()
 
-                    res_tok = self.session.post(token_url, data={"id": profile_id}, headers=token_headers, timeout=(10, 30))
-                    if res_tok.status_code == 200:
-                        tok_json = res_tok.json()
-                        raw_url = tok_json.get("url") or f"/download.php?token={tok_json.get('token')}"
-                        dl_url = urljoin(self.base_url, raw_url)
+                    dl_url = None
+                    res_tok = None
+                    try:
+                        res_tok = self.session.post(token_url, data={"id": profile_id}, headers=token_headers, timeout=(10, 30))
+                        if res_tok.status_code == 200:
+                            tok_json = res_tok.json()
+                            raw_url = tok_json.get("url") or f"/download.php?token={tok_json.get('token')}"
+                            dl_url = urljoin(self.base_url, raw_url)
+                    except Exception:
+                        pass
 
+                    if not dl_url:
+                        res_page = self.session.get(page_url, headers=token_headers, timeout=(10, 30))
+                        if res_page.status_code == 200:
+                            soup = BeautifulSoup(res_page.text, "html.parser")
+                            link_node = soup.find('a', href=re.compile(r'\.ovpn|/get/|/file/|/download/', re.I))
+                            if link_node and link_node.get('href'):
+                                dl_url = urljoin(self.base_url, link_node['href'])
+
+                    if dl_url:
                         res_ovpn = self.session.get(dl_url, headers=token_headers, timeout=(10, 30))
                         if res_ovpn.status_code == 200 and is_valid_ovpn_content(res_ovpn.text):
                             minified = minify_ovpn(res_ovpn.text)
@@ -212,12 +227,14 @@ class OvpnDownloader:
                                 sha256=sha256_val,
                                 content=minified
                             )
-                    elif res_tok.status_code == 429:
+
+                    if res_tok and res_tok.status_code == 429:
                         logger.warning(f"PublicVPNList 429 Rate Limit for {source_id}. Pausing 15s for Cloudflare reset...")
                         import time
                         time.sleep(15.0)
                     else:
-                        logger.warning(f"PublicVPNList token status {res_tok.status_code} for {source_id}")
+                        status_code = res_tok.status_code if res_tok else "scrape"
+                        logger.warning(f"PublicVPNList token/download status {status_code} for {source_id}")
                 except Exception as e:
                     logger.warning(f"PublicVPNList token download attempt {attempt} error for {source_id}: {e}")
                     import time

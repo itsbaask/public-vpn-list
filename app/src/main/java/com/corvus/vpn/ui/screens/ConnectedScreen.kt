@@ -25,15 +25,15 @@ import com.corvus.vpn.ui.servers.Server
 import com.corvus.vpn.util.CountryUtils
 import kotlin.random.Random
 
-// ---------- Crow palette ----------
-private val CrowAccent = Color(0xFF7C6CF0)
-private val CrowAccentText = Color(0xFFA79CF7)
-private val CrowBlack = Color(0xFF000000)
-private val CrowText = Color(0xFFD8D2F5)
-private val CrowMuted = Color(0xFF8E88A3)
-private val CrowFaint = Color(0xFF46435C)
-private val CrowDim = Color(0xFF615C74)
-private val MatrixGreen = Color(0xFF00FF8C)
+// ---------- Crow palette (Obsidian Cyber Noir) ----------
+private val CrowAccent = Color(0xFF39FF88)
+private val CrowAccentText = Color(0xFF6EFFA8)
+private val CrowBlack = Color(0xFF050505)
+private val CrowText = Color(0xFFF0F0F0)
+private val CrowMuted = Color(0xFF888888)
+private val CrowFaint = Color(0xFF444444)
+private val CrowDim = Color(0xFF333333)
+private val MatrixGreen = Color(0xFF39FF88)
 
 private val MonoFont = FontFamily.Monospace
 private const val MATRIX_GLYPHS = "ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗﾔﾖﾙﾚﾛﾝ0123456789ABCDEF"

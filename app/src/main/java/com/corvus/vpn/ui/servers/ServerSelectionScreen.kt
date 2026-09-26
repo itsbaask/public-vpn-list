@@ -3,6 +3,7 @@ package com.corvus.vpn.ui.servers
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,19 +11,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -80,6 +83,7 @@ fun ServerSelectionScreen(
         containerColor = CrowBlack,
         topBar = {
             Column(modifier = Modifier.background(CrowBlack)) {
+                // Top app bar
                 TopAppBar(
                     title = {
                         Column {
@@ -87,18 +91,28 @@ fun ServerSelectionScreen(
                                 text = stringResource(R.string.sovereign_network_title),
                                 fontWeight = FontWeight.Bold,
                                 color = CrowText,
-                                fontSize = 18.sp
+                                fontSize = 17.sp,
+                                letterSpacing = (-0.3).sp
                             )
-                            Surface(
-                                color = CrowAccentBorder,
-                                shape = RoundedCornerShape(6.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isRefreshing) CrowGold else CrowAccent)
+                                )
                                 Text(
-                                    text = if (isRefreshing) " ${stringResource(R.string.syncing_nodes)} " else " $totalServers ${stringResource(R.string.nodes_live)} ",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = CrowAccentText,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    text = if (isRefreshing)
+                                        " ${stringResource(R.string.syncing_nodes)}"
+                                    else
+                                        "$totalServers ${stringResource(R.string.nodes_live)}",
+                                    fontSize = 11.sp,
+                                    color = if (isRefreshing) CrowGold else CrowAccent,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = 0.3.sp
                                 )
                             }
                         }
@@ -117,40 +131,64 @@ fun ServerSelectionScreen(
                     )
                 )
 
-                // Tier Selector Tab Row
-                TabRow(
-                    selectedTabIndex = when(selectedTier) {
-                        "premium" -> 1
-                        "premium_plus" -> 2
-                        else -> 0
-                    },
-                    containerColor = CrowBlack,
-                    contentColor = CrowAccent
+                // Tier selector
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Tab(
-                        selected = selectedTier == "free",
-                        onClick = { selectedTier = "free" },
-                        text = { Text(stringResource(R.string.tier_free), fontWeight = FontWeight.Bold, color = if (selectedTier == "free") CrowAccent else CrowMuted) }
-                    )
-                    Tab(
-                        selected = selectedTier == "premium",
-                        onClick = { selectedTier = "premium" },
-                        text = { Text(stringResource(R.string.tier_premium), fontWeight = FontWeight.Bold, color = if (selectedTier == "premium") CrowAccent else CrowMuted) }
-                    )
-                    Tab(
-                        selected = selectedTier == "premium_plus",
-                        onClick = { selectedTier = "premium_plus" },
-                        text = { Text(stringResource(R.string.tier_premium_plus), fontWeight = FontWeight.Bold, color = if (selectedTier == "premium_plus") CrowAccent else CrowMuted) }
-                    )
+                    listOf("free", "premium", "premium_plus").forEachIndexed { index, tier ->
+                        val label = when (tier) {
+                            "premium"      -> stringResource(R.string.tier_premium)
+                            "premium_plus" -> stringResource(R.string.tier_premium_plus)
+                            else           -> stringResource(R.string.tier_free)
+                        }
+                        val isSelected = selectedTier == tier
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) CrowAccent.copy(alpha = 0.12f) else CrowSurface)
+                                .border(
+                                    0.5.dp,
+                                    if (isSelected) CrowAccent.copy(alpha = 0.5f) else CrowBorderMid,
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .clickable { selectedTier = tier },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) CrowAccent else CrowTextSub
+                            )
+                        }
+                    }
                 }
 
-                // Continent Tabs
+                // Continent tabs
                 ScrollableTabRow(
                     selectedTabIndex = continents.indexOf(selectedContinent).coerceAtLeast(0),
                     containerColor = CrowBlack,
-                    edgePadding = 20.dp,
-                    indicator = {},
-                    divider = {}
+                    contentColor = CrowAccent,
+                    edgePadding = 16.dp,
+                    indicator = { tabPositions ->
+                        val idx = continents.indexOf(selectedContinent).coerceAtLeast(0)
+                        if (idx < tabPositions.size) {
+                            TabRowDefaults.SecondaryIndicator(
+                                modifier = Modifier.tabIndicatorOffset(tabPositions[idx]),
+                                color = CrowAccent,
+                                height = 1.5.dp
+                            )
+                        }
+                    },
+                    divider = {
+                        HorizontalDivider(color = CrowBorder, thickness = 0.5.dp)
+                    }
                 ) {
                     continents.forEach { continent ->
                         Tab(
@@ -161,17 +199,18 @@ fun ServerSelectionScreen(
                                     stringResource(R.string.all_filter)
                                 } else {
                                     when (continent) {
-                                        "Europe" -> stringResource(R.string.continent_europe)
-                                        "Asia" -> stringResource(R.string.continent_asia)
+                                        "Europe"  -> stringResource(R.string.continent_europe)
+                                        "Asia"    -> stringResource(R.string.continent_asia)
                                         "America" -> stringResource(R.string.continent_america)
-                                        "Africa" -> stringResource(R.string.continent_africa)
+                                        "Africa"  -> stringResource(R.string.continent_africa)
                                         "Oceania" -> stringResource(R.string.continent_oceania)
-                                        else -> stringResource(R.string.continent_other)
+                                        else      -> stringResource(R.string.continent_other)
                                     }
                                 }
                                 Text(
                                     text = continentText,
-                                    style = MaterialTheme.typography.labelLarge,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (selectedContinent == continent) FontWeight.Bold else FontWeight.Normal,
                                     color = if (selectedContinent == continent) CrowAccent else CrowMuted
                                 )
                             }
@@ -187,75 +226,95 @@ fun ServerSelectionScreen(
                 .background(CrowBlack)
                 .padding(paddingValues)
         ) {
+            // Search field
             TextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                placeholder = { Text(stringResource(R.string.search_placeholder), color = CrowMuted) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = CrowMuted) },
-                shape = RoundedCornerShape(16.dp),
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                placeholder = {
+                    Text(
+                        stringResource(R.string.search_placeholder),
+                        color = CrowMuted,
+                        fontSize = 13.sp
+                    )
+                },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = CrowMuted, modifier = Modifier.size(18.dp))
+                },
+                shape = RoundedCornerShape(14.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
+                    focusedIndicatorColor   = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    focusedContainerColor = CrowSurface,
+                    focusedContainerColor   = CrowSurface,
                     unfocusedContainerColor = CrowSurface,
-                    focusedTextColor = CrowText,
-                    unfocusedTextColor = CrowText
-                )
+                    focusedTextColor        = CrowText,
+                    unfocusedTextColor      = CrowText
+                ),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
             )
 
+            // Premium upsell banner (only on free tab)
             if (selectedTier == "free") {
                 Surface(
                     onClick = onProClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    color = CrowSurface,
-                    border = BorderStroke(1.dp, CrowAccentBorder)
+                        .padding(horizontal = 18.dp, vertical = 2.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = CrowAccentGlow,
+                    border = BorderStroke(0.5.dp, CrowAccent.copy(alpha = 0.3f))
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        androidx.compose.foundation.Image(
-                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_custom_lock),
+                        Icon(
+                            imageVector = Icons.Outlined.Bolt,
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp)
+                            tint = CrowAccent,
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.ultra_fast_premium_nodes),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = CrowAccentText,
                             modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = CrowAccent.copy(alpha = 0.6f),
+                            modifier = Modifier
+                                .size(16.dp)
+                                .rotate(270f)
                         )
                     }
                 }
             }
 
+            // Server list
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 20.dp)
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 if (searchQuery.isBlank() && selectedContinent == "All") {
-                    item {
-                        BestAutomaticRow(onClick = onSelectBest)
-                    }
+                    item { BestAutomaticRow(onClick = onSelectBest) }
                 }
 
                 val displayedCountries = servers.keys.filter { countryName ->
-                    val serverList = (servers[countryName] ?: emptyList()).filter { 
+                    val serverList = (servers[countryName] ?: emptyList()).filter {
                         it.tier == selectedTier || (selectedTier == "free" && (it.tier.isBlank() || it.tier == "free"))
                     }
                     if (serverList.isEmpty()) return@filter false
 
                     val continent = CountryUtils.getContinent(serverList.firstOrNull()?.countryCode ?: "UN")
                     val matchesContinent = selectedContinent == "All" || continent == selectedContinent
-                    val matchesSearch = countryName.contains(searchQuery, ignoreCase = true) ||
+                    val matchesSearch    = countryName.contains(searchQuery, ignoreCase = true) ||
                             serverList.any { it.name.contains(searchQuery, ignoreCase = true) }
 
                     matchesContinent && matchesSearch
@@ -269,10 +328,11 @@ fun ServerSelectionScreen(
 
                     item(key = "header_$country") {
                         CountryHeader(
-                            name = country,
-                            flag = CountryUtils.getFlagEmoji(serverList.firstOrNull()?.countryCode ?: "UN"),
+                            name       = country,
+                            flag       = CountryUtils.getFlagEmoji(serverList.firstOrNull()?.countryCode ?: "UN"),
+                            serverCount = serverList.size,
                             isExpanded = isExpanded,
-                            onClick = { expandedStates[country] = !isExpanded }
+                            onClick    = { expandedStates[country] = !isExpanded }
                         )
                     }
 
@@ -288,85 +348,113 @@ fun ServerSelectionScreen(
 }
 
 @Composable
-fun CountryHeader(name: String, flag: String, isExpanded: Boolean, onClick: () -> Unit) {
+fun CountryHeader(
+    name: String,
+    flag: String,
+    serverCount: Int = 0,
+    isExpanded: Boolean,
+    onClick: () -> Unit
+) {
     val rotation by animateFloatAsState(if (isExpanded) 180f else 0f, label = "arrow_rotation")
 
-    Surface(
-        onClick = onClick,
-        color = Color.Transparent,
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (flag == "🌐" || flag.isEmpty()) {
-                Icon(
-                    imageVector = Icons.Default.Public,
-                    contentDescription = null,
-                    tint = CrowAccent,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Text(text = flag, fontSize = 24.sp)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = name,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = CrowText,
-                modifier = Modifier.weight(1f)
-            )
+        if (flag == "🌐" || flag.isEmpty()) {
             Icon(
-                imageVector = Icons.Default.KeyboardArrowDown,
+                imageVector = Icons.Default.Public,
                 contentDescription = null,
-                modifier = Modifier.rotate(rotation),
-                tint = CrowMuted
+                tint = CrowTextSub,
+                modifier = Modifier.size(22.dp)
             )
+        } else {
+            Text(text = flag, fontSize = 22.sp)
         }
+        Spacer(modifier = Modifier.width(14.dp))
+        Text(
+            text = name,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = CrowText,
+            modifier = Modifier.weight(1f)
+        )
+        if (serverCount > 0) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(CrowSurface)
+                    .border(0.5.dp, CrowBorderMid, RoundedCornerShape(6.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "$serverCount",
+                    fontSize = 10.sp,
+                    color = CrowTextSub,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+        }
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            modifier = Modifier.rotate(rotation).size(18.dp),
+            tint = CrowMuted
+        )
     }
 }
 
 @Composable
 fun BestAutomaticRow(onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = CrowSurface,
-        border = BorderStroke(
-            width = 1.dp,
-            color = CrowBorder
-        )
+            .padding(horizontal = 18.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(CrowSurface)
+            .border(0.5.dp, CrowBorderMid, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(CrowAccentGlow),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .background(CrowAccentBorder, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = null,
-                    tint = CrowAccentText,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = stringResource(R.string.best_automatic),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = CrowText
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = null,
+                tint = CrowAccent,
+                modifier = Modifier.size(18.dp)
             )
         }
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.best_automatic),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = CrowText
+            )
+            Text(
+                text = "AI-optimized selection",
+                fontSize = 11.sp,
+                color = CrowTextSub
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = CrowMuted,
+            modifier = Modifier.rotate(270f).size(16.dp)
+        )
     }
 }
 
@@ -376,13 +464,13 @@ fun ServerRow(server: Server, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 48.dp, vertical = 12.dp),
+            .padding(start = 54.dp, end = 18.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = server.name,
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = CrowText,
                 maxLines = 1,
@@ -390,17 +478,18 @@ fun ServerRow(server: Server, onClick: () -> Unit) {
             )
             Text(
                 text = stringResource(R.string.encrypted_line),
-                style = MaterialTheme.typography.labelSmall,
+                fontSize = 11.sp,
                 color = CrowMuted
             )
         }
 
         if (server.speed != null && server.speed > 0) {
             Text(
-                text = "${server.speed} Mbps",
-                style = MaterialTheme.typography.labelSmall,
+                text = "${server.speed}M",
+                fontSize = 11.sp,
                 color = CrowAccent,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -408,11 +497,12 @@ fun ServerRow(server: Server, onClick: () -> Unit) {
         if (server.ping != null) {
             Text(
                 text = "${server.ping}ms",
-                style = MaterialTheme.typography.labelSmall,
+                fontSize = 11.sp,
                 color = getLatencyColor(server.ping),
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
         }
         SignalIndicator(signal = server.signal)
     }
@@ -425,14 +515,14 @@ fun SignalIndicator(signal: Int) {
             Box(
                 modifier = Modifier
                     .width(3.dp)
-                    .height((6 + (index * 4)).dp)
+                    .height((5 + (index * 4)).dp)
                     .background(
-                        if (index < signal) CrowAccent
-                        else CrowMuted.copy(alpha = 0.2f),
+                        if (index < signal) CrowAccent.copy(alpha = 0.9f)
+                        else CrowMuted.copy(alpha = 0.18f),
                         shape = CircleShape
                     )
             )
-            Spacer(modifier = Modifier.width(2.dp))
+            if (index < 2) Spacer(modifier = Modifier.width(2.dp))
         }
     }
 }

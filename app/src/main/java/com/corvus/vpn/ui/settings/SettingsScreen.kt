@@ -495,14 +495,14 @@ private fun ProUpgradeBannerCard(onClick: () -> Unit) {
 @Composable
 private fun SectionTitle(title: String) {
     Text(
-        text = title,
+        text = title.uppercase(),
         style = MaterialTheme.typography.labelMedium.copy(
-            letterSpacing = 1.sp,
-            fontSize = 12.sp
+            letterSpacing = 1.5.sp,
+            fontSize = 11.sp
         ),
-        color = CrowAccent,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+        color = CrowTextSub,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
     )
 }
 

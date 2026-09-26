@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -29,22 +30,22 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
 // ============================================================================
-// 1. Corvus Palette — Minimal & Professional (Unified with Crow Theme)
+// 1. Semantic Color Aliases (Obsidian Cyber Noir)
 // ============================================================================
 
 val ColorBlack          = CrowBlack
 val ColorSurface        = CrowSurface
-val ColorSurfaceVariant = CrowCore
+val ColorSurfaceVariant = CrowSurface2
 val ColorBorder         = CrowBorder
 
 val ColorAccent         = CrowAccent
 val ColorAccentMuted    = CrowAccentBorder
 
 val ColorTextPrimary    = CrowText
-val ColorTextSecondary  = CrowMuted
-val ColorTextTertiary   = CrowFaint
+val ColorTextSecondary  = CrowTextSub
+val ColorTextTertiary   = CrowMuted
 
-val ColorSuccess        = Color(0xFF4CAF7D) // Soft Emerald Connected
+val ColorSuccess        = CrowSuccess
 val ColorDanger         = CrowBlood
 val ColorPending        = CrowGold
 
@@ -54,9 +55,9 @@ val ColorPending        = CrowGold
 private val CorvusColorScheme = darkColorScheme(
     primary = CrowAccent,
     onPrimary = CrowBlack,
-    primaryContainer = CrowAccentBorder,
+    primaryContainer = CrowAccentGlow,
     onPrimaryContainer = CrowAccentText,
-    secondary = CrowMuted,
+    secondary = CrowTextSub,
     onSecondary = CrowText,
     tertiary = CrowGold,
     onTertiary = CrowBlack,
@@ -64,10 +65,10 @@ private val CorvusColorScheme = darkColorScheme(
     onBackground = CrowText,
     surface = CrowSurface,
     onSurface = CrowText,
-    surfaceVariant = CrowCore,
-    onSurfaceVariant = CrowMuted,
+    surfaceVariant = CrowSurface2,
+    onSurfaceVariant = CrowTextSub,
     outline = CrowBorder,
-    outlineVariant = CrowBorder,
+    outlineVariant = CrowBorderMid,
     error = CrowBlood,
     onError = CrowText
 )
@@ -81,7 +82,9 @@ fun CorvusUnifiedTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = CorvusColorScheme.background.toArgb()
+            window.navigationBarColor = CorvusColorScheme.background.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
         }
     }
 
@@ -94,7 +97,7 @@ fun CorvusUnifiedTheme(
 }
 
 // ============================================================================
-// 3. Corvus Atomic Components Library
+// 3. Corvus Atomic Components Library — Obsidian Redesign
 // ============================================================================
 
 @Composable
@@ -103,7 +106,7 @@ fun CorvusButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     containerColor: Color = ColorAccent,
-    contentColor: Color = ColorTextPrimary
+    contentColor: Color = CrowBlack
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -133,8 +136,8 @@ fun CorvusButton(
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (-0.2).sp
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
             )
         )
     }
@@ -149,10 +152,10 @@ fun CorvusCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = ColorSurface,
-        border = BorderStroke(width = 1.dp, color = ColorBorder)
+        border = BorderStroke(width = 0.5.dp, color = CrowBorderMid)
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
+            modifier = Modifier.padding(4.dp),
             content = content
         )
     }
@@ -169,12 +172,12 @@ fun CorvusToggle(
         onCheckedChange = onCheckedChange,
         modifier = modifier,
         colors = SwitchDefaults.colors(
-            checkedThumbColor = ColorTextPrimary,
+            checkedThumbColor = CrowBlack,
             checkedTrackColor = ColorAccent,
             checkedBorderColor = Color.Transparent,
-            uncheckedThumbColor = ColorTextSecondary,
-            uncheckedTrackColor = ColorSurfaceVariant,
-            uncheckedBorderColor = ColorBorder
+            uncheckedThumbColor = CrowMuted,
+            uncheckedTrackColor = CrowSurface2,
+            uncheckedBorderColor = CrowBorderMid
         )
     )
 }
@@ -187,26 +190,39 @@ fun CorvusListRow(
     subtitle: String? = null,
     trailingContent: @Composable (() -> Unit)? = null
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val bgAlpha by animateFloatAsState(
+        targetValue = if (isPressed) 1f else 0f,
+        animationSpec = tween(120),
+        label = "row_bg"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 10.dp),
+            .background(CrowSurface3.copy(alpha = bgAlpha))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(vertical = 14.dp, horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(ColorSurfaceVariant),
+                .size(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(CrowSurface2),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = ColorTextPrimary,
-                modifier = Modifier.size(20.dp)
+                tint = CrowTextSub,
+                modifier = Modifier.size(18.dp)
             )
         }
         Spacer(modifier = Modifier.width(14.dp))
@@ -214,9 +230,10 @@ fun CorvusListRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-0.2).sp,
-                    color = ColorTextPrimary
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.sp,
+                    color = ColorTextPrimary,
+                    fontSize = 14.sp
                 )
             )
             if (!subtitle.isNullOrEmpty()) {
@@ -225,8 +242,7 @@ fun CorvusListRow(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontSize = 12.sp,
-                        letterSpacing = (-0.1).sp,
-                        color = ColorTextSecondary
+                        color = ColorTextTertiary
                     )
                 )
             }
@@ -237,7 +253,8 @@ fun CorvusListRow(
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = ColorTextTertiary
+                tint = CrowMuted,
+                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -262,9 +279,9 @@ fun CorvusStatusRing(
     )
 
     val activeColor = when {
-        isConnected -> ColorSuccess
+        isConnected  -> ColorSuccess
         isConnecting -> ColorPending
-        else -> ColorAccent
+        else         -> ColorAccent
     }
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -287,7 +304,7 @@ fun CorvusStatusRing(
             color = Color.Transparent,
             border = BorderStroke(
                 width = 1.dp,
-                color = if (isConnected || isConnecting) activeColor.copy(alpha = 0.35f) else ColorBorder
+                color = if (isConnected || isConnecting) activeColor.copy(alpha = 0.30f) else CrowBorderMid
             )
         ) {}
 
@@ -316,3 +333,12 @@ fun CorvusStatusRing(
         }
     }
 }
+
+// ── Accent gradient brush (use sparingly for premium CTAs) ──────────────────
+val CorvusAccentGradient = Brush.horizontalGradient(
+    colors = listOf(CrowAccent, Color(0xFF00C87A))
+)
+
+val CorvusSurfaceGradient = Brush.verticalGradient(
+    colors = listOf(CrowSurface, CrowBlack)
+)

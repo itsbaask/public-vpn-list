@@ -133,4 +133,10 @@
     <string name="monthly_period_info">شهري / 9.99$</string>
     <string name="weekly_period_info">أسبوعي / 4.99$</string>
     <string name="free_premium_label">بريميوم مجاني</string>
-<string name="feature_priority_support">دعم فني 24/7</string></resources>
+    <string name="notification_turn_off">إيقاف التشغيل</string>
+    <string name="notification_protected">● محمي • مشفر</string>
+    <string name="notification_connecting">● جاري الاتصال…</string>
+    <string name="notification_channel_name">اتصال Corvus VPN</string>
+    <string name="notification_channel_desc">حالة اتصال وتشفير شبكة الـ VPN</string>
+    <string name="feature_priority_support">دعم فني 24/7</string>
+</resources>

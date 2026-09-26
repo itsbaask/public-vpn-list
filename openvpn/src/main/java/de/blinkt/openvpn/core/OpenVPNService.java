@@ -276,9 +276,9 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         mDeviceStateReceiver = null;
         ProfileManager.setConntectedVpnProfileDisconnected(this);
         mOpenVPNThread = null;
+        CorvusNotificationHelper.cancelNotification(this);
+        stopForeground(true);
         if (!mStarting) {
-            stopForeground(!mNotificationAlwaysVisible);
-
             if (!mNotificationAlwaysVisible) {
                 stopSelf();
                 VpnStatus.removeStateListener(this);
@@ -288,107 +288,27 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
 
     private void showNotification(final String msg, String tickerText, @NonNull String channel,
                                   long when, ConnectionStatus status, Intent intent) {
+        boolean isConnected = (status == ConnectionStatus.LEVEL_CONNECTED);
+        boolean isConnecting = (status == ConnectionStatus.LEVEL_CONNECTING_SERVER_REPLIED ||
+                               status == ConnectionStatus.LEVEL_CONNECTING_NO_SERVER_REPLY_YET ||
+                               status == ConnectionStatus.LEVEL_WAITING_FOR_USER_INPUT);
+
+        if (!isConnected && !isConnecting) {
+            CorvusNotificationHelper.cancelNotification(this);
+            return;
+        }
+
+        Notification notification = CorvusNotificationHelper.buildNotification(
+            this,
+            isConnected ? "Connected" : "Connecting",
+            isConnected
+        );
+
         NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        int icon = getIconByConnectionStatus(status);
-
-        android.app.Notification.Builder nbuilder = new Notification.Builder(this);
-
-        int priority;
-        if (channel.equals(NOTIFICATION_CHANNEL_BG_ID))
-            priority = PRIORITY_MIN;
-        else if (channel.equals(NOTIFICATION_CHANNEL_USERREQ_ID))
-            priority = PRIORITY_MAX;
-        else
-            priority = PRIORITY_DEFAULT;
-
-        String serverName = (mProfile != null && mProfile.mName != null) ? mProfile.mName : "Secure Server";
-        String title = "🛡️ Corvus VPN • " + serverName;
-        nbuilder.setContentTitle(title);
-        nbuilder.setContentText(msg);
-
-        String subText = (status == LEVEL_CONNECTED) ? "● Protected • Encrypted" : "Connecting…";
-        nbuilder.setSubText(subText);
-        nbuilder.setCategory(Notification.CATEGORY_SERVICE);
-        nbuilder.setColor(0xFF7C4DFF); // Corvus Signature Violet
-        nbuilder.setOnlyAlertOnce(true);
-        nbuilder.setOngoing(true);
-        nbuilder.setSmallIcon(icon);
-        nbuilder.setVisibility(Notification.VISIBILITY_PUBLIC);
-
-        // Official Corvus Logo as Large Icon
-        try {
-            android.graphics.Bitmap logoBm = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.corvus_logo);
-            if (logoBm != null) {
-                nbuilder.setLargeIcon(logoBm);
-            }
-        } catch (Exception ignored) {}
-
-        // Rich BigTextStyle
-        Notification.BigTextStyle bigStyle = new Notification.BigTextStyle()
-                .setBigContentTitle(title)
-                .setSummaryText(subText)
-                .bigText(msg + (status == LEVEL_CONNECTED ? "\nProtocol: OpenVPN • Ultra-Fast Tunnel" : ""));
-        nbuilder.setStyle(bigStyle);
-
-        if (status == LEVEL_WAITING_FOR_USER_INPUT && intent != null) {
-            PendingIntent pIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-            nbuilder.setContentIntent(pIntent);
-        } else {
-            nbuilder.setContentIntent(getGraphPendingIntent());
+        if (mNotificationManager != null) {
+            mNotificationManager.notify(CorvusNotificationHelper.NOTIFICATION_ID, notification);
         }
-
-        if (when != 0) nbuilder.setWhen(when);
-
-        jbNotificationExtras(priority, nbuilder);
-        
-        // CUSTOM WORLD-CLASS DESIGN WITH BUTTONS
-        addVpnActionsToNotification(nbuilder, status);
-        
-        lpNotificationExtras(nbuilder, Notification.CATEGORY_SERVICE);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nbuilder.setChannelId(channel);
-            if (mProfile != null) nbuilder.setShortcutId(mProfile.getUUIDString());
-        }
-
-        if (tickerText != null && !tickerText.equals("")) nbuilder.setTicker(tickerText);
-
-        Notification notification = nbuilder.build();
-        int notificationId = channel.hashCode();
-        mNotificationManager.notify(notificationId, notification);
-        startForeground(notificationId, notification);
-
-        if (lastChannel != null && !channel.equals(lastChannel)) {
-            mNotificationManager.cancel(lastChannel.hashCode());
-        }
-    }
-
-    private void addVpnActionsToNotification(Notification.Builder nbuilder, ConnectionStatus status) {
-        // DISCONNECT BUTTON (Standard behavior)
-        Intent disconnectVPN = new Intent(this, de.blinkt.openvpn.activities.DisconnectVPN.class);
-        disconnectVPN.setAction(DISCONNECT_VPN);
-        PendingIntent disconnectPendingIntent = PendingIntent.getActivity(this, 0, disconnectVPN, PendingIntent.FLAG_IMMUTABLE);
-
-        nbuilder.addAction(new Notification.Action.Builder(
-                R.drawable.ic_menu_close_clear_cancel,
-                "Disconnect ✕",
-                disconnectPendingIntent
-        ).build());
-
-        // CONNECT BUTTON (Opens app for ad revenue)
-        if (status != LEVEL_CONNECTED) {
-            Intent connectIntent = new Intent(this, de.blinkt.openvpn.LaunchVPN.class);
-            connectIntent.setAction(Intent.ACTION_MAIN);
-            connectIntent.addFlags(FLAG_ACTIVITY_NEW_TASK);
-            connectIntent.putExtra("FORCE_SHOW_AD", true);
-            PendingIntent connectPendingIntent = PendingIntent.getActivity(this, 1, connectIntent, PendingIntent.FLAG_IMMUTABLE);
-
-            nbuilder.addAction(new Notification.Action.Builder(
-                    R.drawable.ic_menu_play,
-                    "CONNECT NOW",
-                    connectPendingIntent
-            ).build());
-        }
+        startForeground(CorvusNotificationHelper.NOTIFICATION_ID, notification);
     }
 
     private void lpNotificationExtras(Notification.Builder nbuilder, String category) {
@@ -480,19 +400,13 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         PendingIntent pIntent = PendingIntent.getActivity(this, 12, intent, PendingIntent.FLAG_IMMUTABLE);
         return pIntent;
     }
-
     PendingIntent getGraphPendingIntent() {
-        // Let the configure Button show the Log
-
-
         Intent intent = new Intent();
-        intent.setComponent(new ComponentName(this, getPackageName() + ".activities.MainActivity"));
-
-        intent.putExtra("PAGE", "graph");
-        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        PendingIntent startLW = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        return startLW;
+        intent.setComponent(new ComponentName(this, "com.corvus.vpn.MainActivity"));
+        intent.setAction(Intent.ACTION_MAIN);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
     }
 

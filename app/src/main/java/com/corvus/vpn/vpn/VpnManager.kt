@@ -18,6 +18,9 @@ import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import de.blinkt.openvpn.core.CorvusNotificationHelper
+import com.corvus.vpn.util.CountryUtils
+
 @Singleton
 class VpnManager @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -42,6 +45,15 @@ class VpnManager @Inject constructor(
     fun startVpn(server: Server, activityContext: Context? = null) {
         lastActivityContext = activityContext
         try {
+            val flag = if (server.id == "best_automatic") "⚡" else CountryUtils.getFlagEmoji(server.countryCode ?: "")
+            val resolvedCountry = server.countryName ?: CountryUtils.getCountryName(server.countryCode ?: "")
+            CorvusNotificationHelper.updateServerInfo(
+                server.countryCode ?: "US",
+                resolvedCountry.ifBlank { server.name },
+                flag,
+                server.protocol
+            )
+
             val serverEntity = serverRepository.getServers().find { it.id == server.id }
                 ?: serverRepository.getServers().find { it.name == server.name }
                 ?: ServerEntity(
@@ -169,10 +181,12 @@ class VpnManager @Inject constructor(
         stateObservationJob = null
 
         try {
+            CorvusNotificationHelper.cancelNotification(context)
             activeEngine?.stop()
         } catch (e: Throwable) {
             Log.e("VpnManager", "Error stopping engine", e)
         } finally {
+            CorvusNotificationHelper.cancelNotification(context)
             activeEngine = null
             _vpnState.value = VpnState.Idle
         }

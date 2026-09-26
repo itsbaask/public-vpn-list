@@ -69,5 +69,14 @@
                 android:value="true" />
         </service>
 
+        <!-- Corvus VPN Notification Action Receiver (Instant Disconnect) -->
+        <receiver
+            android:name=".receiver.VpnActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.corvus.vpn.ACTION_DISCONNECT" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

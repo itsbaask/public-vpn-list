@@ -508,5 +508,10 @@
     <string name="local_network_permission">Local network permission</string>
     <string name="local_network_permission_summary">Allows to connect to a VPN server on the local network.</string>
     <string name="Corvus_VPN3_different_proxy">Corvus VPN 3 C++ implementation does not support different proxy settings per remote</string>
+    <string name="notification_turn_off">Turn Off</string>
+    <string name="notification_protected">● Protected • Encrypted</string>
+    <string name="notification_connecting">● Connecting…</string>
+    <string name="notification_channel_name">Corvus VPN Connection</string>
+    <string name="notification_channel_desc">Active VPN protection status and controls</string>
 
 </resources>

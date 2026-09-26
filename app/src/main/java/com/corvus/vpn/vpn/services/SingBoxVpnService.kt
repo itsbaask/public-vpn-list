@@ -13,6 +13,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.corvus.vpn.MainActivity
 import com.corvus.vpn.data.ServerEntity
+import de.blinkt.openvpn.core.CorvusNotificationHelper
 import io.nekohasekai.libbox.BoxService
 import io.nekohasekai.libbox.InterfaceUpdateListener
 import io.nekohasekai.libbox.Libbox
@@ -85,7 +86,7 @@ class SingBoxVpnService : VpnService() {
     private var tunFd: ParcelFileDescriptor? = null
     private var serverName = "VPN"
 
-    override fun onCreate() { super.onCreate(); createNotificationChannel() }
+    override fun onCreate() { super.onCreate(); CorvusNotificationHelper.createNotificationChannel(this) }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -94,10 +95,15 @@ class SingBoxVpnService : VpnService() {
                     _tunnelState.value = TunnelState.ERROR; stopSelf(); return START_NOT_STICKY
                 }
                 serverName = intent.getStringExtra(EXTRA_SERVER_NAME) ?: "VPN"
-                startForeground(NOTIFICATION_ID, buildNotification("Connecting…"))
+                startForeground(CorvusNotificationHelper.NOTIFICATION_ID, CorvusNotificationHelper.buildNotification(this, "Connecting…", false))
                 startLibbox(uri)
             }
-            ACTION_STOP -> { stopLibbox(); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }
+            ACTION_STOP -> { 
+                stopLibbox()
+                CorvusNotificationHelper.cancelNotification(this)
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf() 
+            }
         }
         return START_NOT_STICKY
     }
@@ -195,7 +201,7 @@ class SingBoxVpnService : VpnService() {
             boxService?.start()
 
             _tunnelState.value = TunnelState.CONNECTED
-            updateNotification("Connected")
+            updateNotification(true)
             Log.d(TAG, "sing-box started ✅")
 
         } catch (e: Exception) {
@@ -209,60 +215,22 @@ class SingBoxVpnService : VpnService() {
         boxService = null
         try { tunFd?.close() } catch (_: Exception) {}
         tunFd = null
+        CorvusNotificationHelper.cancelNotification(this)
         _tunnelState.value = TunnelState.DISCONNECTED
     }
 
     override fun onDestroy() { stopLibbox(); super.onDestroy() }
     override fun onRevoke() { stopLibbox(); super.onRevoke() }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val ch = NotificationChannel(CHANNEL_ID, "VPN Connection", NotificationManager.IMPORTANCE_LOW)
-            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(ch)
-        }
-    }
-
-    private fun buildNotification(status: String): Notification {
-        val pi = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        val disconnectIntent = PendingIntent.getService(
-            this, 1,
-            Intent(this, SingBoxVpnService::class.java).apply { action = ACTION_STOP },
-            PendingIntent.FLAG_IMMUTABLE
+    private fun updateNotification(isConnected: Boolean) {
+        val notification = CorvusNotificationHelper.buildNotification(
+            this,
+            if (isConnected) "Connected" else "Connecting",
+            isConnected
         )
-        val logoBm = try {
-            android.graphics.BitmapFactory.decodeResource(resources, com.corvus.vpn.R.drawable.logo)
-        } catch (_: Exception) { null }
-
-        val isConnected = _tunnelState.value == TunnelState.CONNECTED
-        val subText = if (isConnected) "● Protected • Encrypted" else "Connecting…"
-        val title = "🛡️ Corvus VPN • $serverName"
-
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(status)
-            .setSubText(subText)
-            .setColor(0xFF7C4DFF.toInt())
-            .setSmallIcon(com.corvus.vpn.R.drawable.ic_stat_vpn_outline)
-            .setContentIntent(pi)
-            .setOngoing(true)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOnlyAlertOnce(true)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Disconnect ✕", disconnectIntent)
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .setBigContentTitle(title)
-                    .setSummaryText(subText)
-                    .bigText("$status\nProtocol: sing-box • Ultra-Fast Tunnel")
-            )
-
-        if (logoBm != null) {
-            builder.setLargeIcon(logoBm)
-        }
-
-        return builder.build()
-    }
-
-    private fun updateNotification(s: String) {
-        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(NOTIFICATION_ID, buildNotification(s))
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(
+            CorvusNotificationHelper.NOTIFICATION_ID,
+            notification
+        )
     }
 }

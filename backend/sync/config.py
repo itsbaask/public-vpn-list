@@ -2,10 +2,18 @@ import os
 from dataclasses import dataclass
 from typing import Optional
 
+PERMANENT_ACCESS_KEY = "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
+
+def _resolve_access_key() -> str:
+    env_key = (os.getenv("PUBLICVPNLIST_ACCESS_KEY") or "").strip()
+    if not env_key or env_key.lower() == "none":
+        return PERMANENT_ACCESS_KEY
+    return env_key
+
 @dataclass
 class Config:
     base_url: str = os.getenv("PUBLICVPNLIST_BASE_URL", "https://publicvpnlist.com")
-    access_key: Optional[str] = (os.getenv("PUBLICVPNLIST_ACCESS_KEY") or "").strip() or "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
+    access_key: str = _resolve_access_key()
     public_data_base_url: str = os.getenv("PUBLIC_DATA_BASE_URL", "https://vpn.example.com")
 
     # R2 Storage

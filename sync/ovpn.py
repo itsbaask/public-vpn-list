@@ -92,6 +92,8 @@ def is_valid_ovpn_content(text: str) -> bool:
 
 import threading
 
+PERMANENT_KEY = "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
+
 class OvpnDownloader:
     _token_lock = threading.Lock()
     _last_pvl_request_time = 0.0
@@ -103,7 +105,7 @@ class OvpnDownloader:
         session: Optional[requests.Session] = None
     ):
         self.base_url = base_url.rstrip("/")
-        self.access_key = access_key or "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
+        self.access_key = (access_key or "").strip() or PERMANENT_KEY
         if session:
             self.session = session
         else:
@@ -282,6 +284,12 @@ class OvpnDownloader:
         if target_type == "profile_source_url":
             try:
                 res = self.session.get(target_url, headers=headers, timeout=(15, 90), allow_redirects=True)
+                if res is not None and (res.status_code == 401 or (res.text and "access_expired" in res.text)):
+                    if self.access_key != PERMANENT_KEY:
+                        logger.warning(f"Download for {source_id} returned HTTP 401. Auto-retrying with permanent key...")
+                        self.access_key = PERMANENT_KEY
+                        headers = self._get_auth_headers()
+                        res = self.session.get(target_url, headers=headers, timeout=(15, 90), allow_redirects=True)
                 status = res.status_code if res is not None else 0
                 content_type = res.headers.get("Content-Type", "") if res is not None else ""
                 bytes_count = len(res.content) if res is not None and res.content else 0

@@ -198,16 +198,29 @@ class SingBoxEngine @Inject constructor(
      * 2. server.ovpnConfig directly (if it's a URI)
      * 3. server.configUri directly (if it's a URI)
      */
-    private fun resolveConnectionUri(server: ServerEntity): String? {
+    private suspend fun resolveConnectionUri(server: ServerEntity): String? {
         // Try repository lookup first (handles cache)
         val repoUri = serverRepository.getConnectionUri(server.id)
-        if (repoUri != null) return repoUri
+        if (repoUri != null && isValidConnectionUri(repoUri)) return repoUri
 
         // Direct check on entity fields
-        val candidates = listOf(server.ovpnConfig, server.configUri)
+        val candidates = listOfNotNull(repoUri, server.ovpnConfig, server.configUri)
         for (candidate in candidates) {
-            if (!candidate.isNullOrBlank() && isValidConnectionUri(candidate)) {
-                return candidate
+            if (candidate.isNotBlank()) {
+                if (isValidConnectionUri(candidate)) {
+                    return candidate
+                }
+                // If it's a remote URL that serves the raw protocol URI (e.g. download.php?protocol=vless):
+                if (candidate.startsWith("http://") || candidate.startsWith("https://")) {
+                    try {
+                        val fetched = serverRepository.fetchFullConfig(server.id)
+                        if (fetched != null && isValidConnectionUri(fetched.trim())) {
+                            return fetched.trim()
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to resolve URI from URL $candidate: ${e.message}")
+                    }
+                }
             }
         }
 

@@ -140,6 +140,17 @@ class OvpnDownloader:
         # Priority -1: Non-OpenVPN Modern Protocols (vless, vmess, shadowsocks, trojan, hysteria2)
         if protocol != "openvpn":
             config_uri = getattr(target, "config_uri", "") or getattr(target, "profile_source_url", "") or f"{protocol}://{source_id}"
+            if config_uri.startswith("http://") or config_uri.startswith("https://"):
+                try:
+                    res_uri = self.session.get(config_uri, timeout=(5, 15))
+                    if res_uri.status_code == 200:
+                        text_val = res_uri.text.strip()
+                        if "://" in text_val and not text_val.startswith("http"):
+                            config_uri = text_val
+                            if hasattr(target, "config_uri"):
+                                target.config_uri = config_uri
+                except Exception as e:
+                    logger.debug(f"Failed to resolve direct URI for {source_id}: {e}")
             sha256_val = getattr(target, "config_sha256", "") or compute_sha256(config_uri)
             return DownloadResult(
                 source_id=source_id,

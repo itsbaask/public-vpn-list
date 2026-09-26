@@ -224,9 +224,42 @@ class SingBoxVpnService : VpnService() {
 
     private fun buildNotification(status: String): Notification {
         val pi = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Corvus VPN — $serverName").setContentText(status)
-            .setSmallIcon(android.R.drawable.ic_lock_lock).setContentIntent(pi).setOngoing(true).build()
+        val disconnectIntent = PendingIntent.getService(
+            this, 1,
+            Intent(this, SingBoxVpnService::class.java).apply { action = ACTION_STOP },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val logoBm = try {
+            android.graphics.BitmapFactory.decodeResource(resources, com.corvus.vpn.R.drawable.logo)
+        } catch (_: Exception) { null }
+
+        val isConnected = _tunnelState.value == TunnelState.CONNECTED
+        val subText = if (isConnected) "● Protected • Encrypted" else "Connecting…"
+        val title = "🛡️ Corvus VPN • $serverName"
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(status)
+            .setSubText(subText)
+            .setColor(0xFF7C4DFF.toInt())
+            .setSmallIcon(com.corvus.vpn.R.drawable.ic_stat_vpn_outline)
+            .setContentIntent(pi)
+            .setOngoing(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOnlyAlertOnce(true)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Disconnect ✕", disconnectIntent)
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .setBigContentTitle(title)
+                    .setSummaryText(subText)
+                    .bigText("$status\nProtocol: sing-box • Ultra-Fast Tunnel")
+            )
+
+        if (logoBm != null) {
+            builder.setLargeIcon(logoBm)
+        }
+
+        return builder.build()
     }
 
     private fun updateNotification(s: String) {

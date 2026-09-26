@@ -301,16 +301,34 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         else
             priority = PRIORITY_DEFAULT;
 
-        String title = (mProfile != null) ? "Corvus Secure: " + mProfile.mName : "Corvus VPN Line";
+        String serverName = (mProfile != null && mProfile.mName != null) ? mProfile.mName : "Secure Server";
+        String title = "🛡️ Corvus VPN • " + serverName;
         nbuilder.setContentTitle(title);
         nbuilder.setContentText(msg);
-        nbuilder.setSubText("Connection Status");
+
+        String subText = (status == LEVEL_CONNECTED) ? "● Protected • Encrypted" : "Connecting…";
+        nbuilder.setSubText(subText);
         nbuilder.setCategory(Notification.CATEGORY_SERVICE);
-        nbuilder.setColor(0xFF6200EE); // Corvus Primary Color
+        nbuilder.setColor(0xFF7C4DFF); // Corvus Signature Violet
         nbuilder.setOnlyAlertOnce(true);
         nbuilder.setOngoing(true);
         nbuilder.setSmallIcon(icon);
         nbuilder.setVisibility(Notification.VISIBILITY_PUBLIC);
+
+        // Official Corvus Logo as Large Icon
+        try {
+            android.graphics.Bitmap logoBm = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.corvus_logo);
+            if (logoBm != null) {
+                nbuilder.setLargeIcon(logoBm);
+            }
+        } catch (Exception ignored) {}
+
+        // Rich BigTextStyle
+        Notification.BigTextStyle bigStyle = new Notification.BigTextStyle()
+                .setBigContentTitle(title)
+                .setSummaryText(subText)
+                .bigText(msg + (status == LEVEL_CONNECTED ? "\nProtocol: OpenVPN • Ultra-Fast Tunnel" : ""));
+        nbuilder.setStyle(bigStyle);
 
         if (status == LEVEL_WAITING_FOR_USER_INPUT && intent != null) {
             PendingIntent pIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
@@ -353,7 +371,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
 
         nbuilder.addAction(new Notification.Action.Builder(
                 R.drawable.ic_menu_close_clear_cancel,
-                "DISCONNECT",
+                "Disconnect ✕",
                 disconnectPendingIntent
         ).build());
 

@@ -136,4 +136,10 @@
     <string name="connection_failed_try_another">Connection failed. Please try another server.</string>
     <string name="connection_notice">Connection Notice</string>
     <string name="try_another_server">Try Another Server</string>
+    <string name="kill_switch_dialog_title">Kill Switch Leak Protection</string>
+    <string name="kill_switch_dialog_desc">To enable complete device-wide leak protection, Android requires turning on \'Always-on VPN\' and \'Block connections without VPN\' in your system VPN settings.</string>
+    <string name="open_vpn_settings">Open VPN Settings</string>
+    <string name="mock_gps_dialog_title">Mock Location Setup</string>
+    <string name="mock_gps_dialog_desc">To spoof your GPS location to match the VPN server location, please select Corvus VPN as the \'Mock location app\' in Android Developer Options.</string>
+    <string name="open_developer_options">Open Developer Options</string>
 </resources>

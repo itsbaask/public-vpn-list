@@ -29,6 +29,9 @@ import com.corvus.vpn.ui.theme.*
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import android.app.Activity
+import android.content.Intent
+import android.provider.Settings
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,6 +60,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showKillSwitchInfoDialog by remember { mutableStateOf(false) }
+    var showMockGpsPermissionDialog by remember { mutableStateOf(false) }
 
     val languages = listOf(
         Pair("English", "en"),
@@ -132,26 +137,45 @@ fun SettingsScreen(
                         }
                     )
                     SettingsDivider()
+                    val handleMockGpsToggle = { newState: Boolean ->
+                        if (newState) {
+                            if (com.corvus.vpn.util.MockLocationManager.isMockLocationAllowed(context)) {
+                                onMockGpsChange(true)
+                            } else {
+                                showMockGpsPermissionDialog = true
+                            }
+                        } else {
+                            onMockGpsChange(false)
+                            com.corvus.vpn.util.MockLocationManager.clearMockLocation(context)
+                        }
+                    }
                     CorvusListRow(
                         title = stringResource(R.string.mock_gps),
                         icon = Icons.Default.LocationOn,
-                        onClick = { onMockGpsChange(!mockGpsEnabled) },
+                        onClick = { handleMockGpsToggle(!mockGpsEnabled) },
                         trailingContent = {
-                            CorvusToggle(checked = mockGpsEnabled, onCheckedChange = onMockGpsChange)
+                            CorvusToggle(checked = mockGpsEnabled, onCheckedChange = handleMockGpsToggle)
                         }
                     )
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                val handleKillSwitchToggle = { newState: Boolean ->
+                    onKillSwitchChange(newState)
+                    if (newState) {
+                        showKillSwitchInfoDialog = true
+                    }
+                }
+
                 SectionTitle(stringResource(R.string.section_connection))
                 CorvusCard {
                     CorvusListRow(
                         title = stringResource(R.string.kill_switch),
                         icon = Icons.Default.PowerSettingsNew,
-                        onClick = { onKillSwitchChange(!killSwitchEnabled) },
+                        onClick = { handleKillSwitchToggle(!killSwitchEnabled) },
                         trailingContent = {
-                            CorvusToggle(checked = killSwitchEnabled, onCheckedChange = onKillSwitchChange)
+                            CorvusToggle(checked = killSwitchEnabled, onCheckedChange = handleKillSwitchToggle)
                         }
                     )
                     SettingsDivider()
@@ -262,6 +286,108 @@ fun SettingsScreen(
                     confirmButton = {
                         TextButton(onClick = { showLanguageDialog = false }) {
                             Text(text = stringResource(R.string.cancel_button), color = CrowAccent)
+                        }
+                    }
+                )
+            }
+
+            if (showKillSwitchInfoDialog) {
+                AlertDialog(
+                    onDismissRequest = { showKillSwitchInfoDialog = false },
+                    containerColor = CrowSurface,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = null,
+                            tint = CrowAccent,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = stringResource(R.string.kill_switch_dialog_title),
+                            color = CrowText,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = stringResource(R.string.kill_switch_dialog_desc),
+                            color = CrowMuted,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showKillSwitchInfoDialog = false
+                                try {
+                                    context.startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
+                                } catch (e: Exception) {
+                                    // ignore
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = CrowAccent)
+                        ) {
+                            Text(text = stringResource(R.string.open_vpn_settings), color = Color.White)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showKillSwitchInfoDialog = false }) {
+                            Text(text = stringResource(R.string.close_button), color = CrowMuted)
+                        }
+                    }
+                )
+            }
+
+            if (showMockGpsPermissionDialog) {
+                AlertDialog(
+                    onDismissRequest = { showMockGpsPermissionDialog = false },
+                    containerColor = CrowSurface,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = CrowAccent,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = stringResource(R.string.mock_gps_dialog_title),
+                            color = CrowText,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = stringResource(R.string.mock_gps_dialog_desc),
+                            color = CrowMuted,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showMockGpsPermissionDialog = false
+                                try {
+                                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+                                } catch (e: Exception) {
+                                    // ignore
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = CrowAccent)
+                        ) {
+                            Text(text = stringResource(R.string.open_developer_options), color = Color.White)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showMockGpsPermissionDialog = false }) {
+                            Text(text = stringResource(R.string.cancel_button), color = CrowMuted)
                         }
                     }
                 )

@@ -37,6 +37,7 @@ public class CorvusNotificationHelper {
     private static volatile String sCountryName = "";
     private static volatile String sFlagEmoji = "";
     private static volatile String sProtocol = "VPN";
+    private static volatile String sCurrentSpeed = "";
 
     public static void updateServerInfo(String countryCode, String countryName, String flag, String protocol) {
         if (countryCode != null && !countryCode.trim().isEmpty()) {
@@ -51,6 +52,21 @@ public class CorvusNotificationHelper {
         if (protocol != null && !protocol.trim().isEmpty()) {
             sProtocol = protocol.trim();
         }
+    }
+
+    public static void updateSpeed(Context context, String speedText) {
+        sCurrentSpeed = (speedText != null) ? speedText : "";
+        try {
+            android.content.SharedPreferences prefs = context.getSharedPreferences("corvus_settings", Context.MODE_PRIVATE);
+            boolean showSpeed = prefs.getBoolean("display_speed_notification", true);
+            if (!showSpeed) return;
+
+            NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) {
+                Notification n = buildNotification(context, "Connected", true);
+                nm.notify(NOTIFICATION_ID, n);
+            }
+        } catch (Exception ignored) {}
     }
 
     public static void createNotificationChannel(Context context) {
@@ -76,6 +92,14 @@ public class CorvusNotificationHelper {
     public static Notification buildNotification(Context context, String fallbackStatus, boolean isConnected) {
         createNotificationChannel(context);
 
+        boolean showDisconnectBtn = true;
+        boolean showSpeed = true;
+        try {
+            android.content.SharedPreferences prefs = context.getSharedPreferences("corvus_settings", Context.MODE_PRIVATE);
+            showDisconnectBtn = prefs.getBoolean("notification_toggle_enabled", true);
+            showSpeed = prefs.getBoolean("display_speed_notification", true);
+        } catch (Exception ignored) {}
+
         String displayName = sCountryName;
         String displayFlag = sFlagEmoji;
 
@@ -96,6 +120,10 @@ public class CorvusNotificationHelper {
         String statusText = isConnected 
             ? context.getString(R.string.notification_protected) 
             : context.getString(R.string.notification_connecting);
+
+        if (isConnected && showSpeed && sCurrentSpeed != null && !sCurrentSpeed.trim().isEmpty()) {
+            statusText = statusText + "  •  ↓ " + sCurrentSpeed.trim();
+        }
 
         // 1. PendingIntent to open MainActivity
         Intent mainIntent = new Intent();
@@ -131,7 +159,12 @@ public class CorvusNotificationHelper {
         compactView.setTextViewText(R.id.notification_title, title);
         compactView.setTextViewText(R.id.notification_subtitle, statusText);
         compactView.setTextColor(R.id.notification_subtitle, isConnected ? 0xFF00E676 : 0xFFFFA000);
-        compactView.setOnClickPendingIntent(R.id.notification_btn_disconnect, disconnectPendingIntent);
+        if (showDisconnectBtn) {
+            compactView.setViewVisibility(R.id.notification_btn_disconnect, android.view.View.VISIBLE);
+            compactView.setOnClickPendingIntent(R.id.notification_btn_disconnect, disconnectPendingIntent);
+        } else {
+            compactView.setViewVisibility(R.id.notification_btn_disconnect, android.view.View.GONE);
+        }
         compactView.setOnClickPendingIntent(R.id.notification_container, contentPendingIntent);
 
         RemoteViews expandedView = new RemoteViews(context.getPackageName(), R.layout.notification_corvus_expanded);
@@ -139,7 +172,12 @@ public class CorvusNotificationHelper {
         expandedView.setTextViewText(R.id.notification_subtitle, statusText);
         expandedView.setTextColor(R.id.notification_subtitle, isConnected ? 0xFF00E676 : 0xFFFFA000);
         expandedView.setTextViewText(R.id.notification_proto_badge, sProtocol.toUpperCase());
-        expandedView.setOnClickPendingIntent(R.id.notification_btn_disconnect, disconnectPendingIntent);
+        if (showDisconnectBtn) {
+            expandedView.setViewVisibility(R.id.notification_btn_disconnect, android.view.View.VISIBLE);
+            expandedView.setOnClickPendingIntent(R.id.notification_btn_disconnect, disconnectPendingIntent);
+        } else {
+            expandedView.setViewVisibility(R.id.notification_btn_disconnect, android.view.View.GONE);
+        }
         expandedView.setOnClickPendingIntent(R.id.notification_container, contentPendingIntent);
 
         if (logoBm != null) {
@@ -160,10 +198,13 @@ public class CorvusNotificationHelper {
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(contentPendingIntent)
-            .addAction(R.drawable.ic_menu_close_clear_cancel, context.getString(R.string.notification_turn_off), disconnectPendingIntent)
             .setCustomContentView(compactView)
             .setCustomBigContentView(expandedView)
             .setStyle(new NotificationCompat.DecoratedCustomViewStyle());
+
+        if (showDisconnectBtn) {
+            builder.addAction(R.drawable.ic_menu_close_clear_cancel, context.getString(R.string.notification_turn_off), disconnectPendingIntent);
+        }
 
         if (logoBm != null) {
             builder.setLargeIcon(logoBm);

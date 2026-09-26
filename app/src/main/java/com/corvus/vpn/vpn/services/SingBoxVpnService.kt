@@ -131,12 +131,33 @@ class SingBoxVpnService : VpnService() {
 
                 // Build Android TUN device — fd is handed to sing-box
                 override fun openTun(options: TunOptions): Int {
+                    val corvusPrefs = svc.getSharedPreferences("corvus_settings", Context.MODE_PRIVATE)
+                    val allowLan = corvusPrefs.getBoolean("allow_lan_devices", false)
+                    val killSwitch = corvusPrefs.getBoolean("kill_switch", false)
+
                     val builder = Builder()
                         .setSession("Corvus VPN — $serverName")
                         .setMtu(options.getMTU().coerceAtLeast(1500))
                         .addRoute("0.0.0.0", 0)
                         .addDnsServer("8.8.8.8")
                         .addDnsServer("1.1.1.1")
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        builder.setMetered(false)
+                        if (killSwitch) {
+                            builder.setBlocking(true)
+                        }
+                    }
+
+                    if (allowLan && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        try {
+                            builder.excludeRoute(android.net.IpPrefix(java.net.InetAddress.getByName("192.168.0.0"), 16))
+                            builder.excludeRoute(android.net.IpPrefix(java.net.InetAddress.getByName("10.0.0.0"), 8))
+                            builder.excludeRoute(android.net.IpPrefix(java.net.InetAddress.getByName("172.16.0.0"), 12))
+                        } catch (e: Exception) {
+                            Log.w(TAG, "excludeRoute failed: ${e.message}")
+                        }
+                    }
 
                     // Add IPv4 addresses
                     var hasAddr = false

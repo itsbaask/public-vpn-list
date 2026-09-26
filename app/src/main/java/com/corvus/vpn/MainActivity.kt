@@ -208,10 +208,16 @@ class MainActivity : ComponentActivity() {
                         sessionManager.startSession(initialSeconds) {
                             vpnManager.stopVpn()
                         }
+
+                        if (mockGpsEnabled && selectedServer != null) {
+                            val coords = CountryUtils.getCoordinates(selectedServer?.countryCode ?: "US")
+                            com.corvus.vpn.util.MockLocationManager.setMockLocation(this@MainActivity, coords.first, coords.second)
+                        }
                     } else if (vpnState is VpnState.Error) {
                         sessionManager.stopSession()
                         hasShownDialogForCurrentSession = false
                         showConnectedDialog = false
+                        com.corvus.vpn.util.MockLocationManager.clearMockLocation(this@MainActivity)
                         val rawMsg = (vpnState as VpnState.Error).reason
                         connectionErrorMessage = if (rawMsg.contains("failed", ignoreCase = true)
                             || rawMsg.contains("timeout", ignoreCase = true)
@@ -226,6 +232,18 @@ class MainActivity : ComponentActivity() {
                         sessionManager.stopSession()
                         hasShownDialogForCurrentSession = false
                         showConnectedDialog = false
+                        com.corvus.vpn.util.MockLocationManager.clearMockLocation(this@MainActivity)
+                    }
+                }
+
+                LaunchedEffect(vpnState, byteCount, displaySpeedNotification) {
+                    if (vpnState is VpnState.Connected) {
+                        if (displaySpeedNotification) {
+                            val rxSpeedStr = if (byteCount.third > 0) "${byteCount.third / 1024} KB/s" else "0 KB/s"
+                            de.blinkt.openvpn.core.CorvusNotificationHelper.updateSpeed(this@MainActivity, rxSpeedStr)
+                        } else {
+                            de.blinkt.openvpn.core.CorvusNotificationHelper.updateSpeed(this@MainActivity, "")
+                        }
                     }
                 }
 
@@ -370,6 +388,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onServerSelect = { server ->
                                 selectedServer = server
+                                settingsRepository.lastConnectedServerId = server.id
                                 currentScreen = "home"
                                 if (isConnected) {
                                     vpnManager.switchServer(server)
@@ -390,6 +409,9 @@ class MainActivity : ComponentActivity() {
                                 )
                                 currentScreen = "home"
                                 val bestEntity = serverEntities.maxByOrNull { it.score ?: 0 }
+                                if (bestEntity != null) {
+                                    settingsRepository.lastConnectedServerId = bestEntity.id
+                                }
                                 if (isConnected && bestEntity != null) {
                                     val list = loadServersFromEntities(listOf(bestEntity))
                                     val bestServer = list.values.flatten().firstOrNull()
@@ -428,16 +450,37 @@ class MainActivity : ComponentActivity() {
                             onMockGpsChange = {
                                 mockGpsEnabled = it
                                 settingsRepository.mockGpsEnabled = it
+                                if (it && isConnected && selectedServer != null) {
+                                    val coords = CountryUtils.getCoordinates(selectedServer?.countryCode ?: "US")
+                                    com.corvus.vpn.util.MockLocationManager.setMockLocation(this@MainActivity, coords.first, coords.second)
+                                } else if (!it) {
+                                    com.corvus.vpn.util.MockLocationManager.clearMockLocation(this@MainActivity)
+                                }
                             },
                             displaySpeedNotification = displaySpeedNotification,
                             onDisplaySpeedNotificationChange = {
                                 displaySpeedNotification = it
                                 settingsRepository.displaySpeedInNotification = it
+                                if (isConnected) {
+                                    if (it) {
+                                        val rxSpeedStr = if (byteCount.third > 0) "${byteCount.third / 1024} KB/s" else "0 KB/s"
+                                        de.blinkt.openvpn.core.CorvusNotificationHelper.updateSpeed(this@MainActivity, rxSpeedStr)
+                                    } else {
+                                        de.blinkt.openvpn.core.CorvusNotificationHelper.updateSpeed(this@MainActivity, "")
+                                    }
+                                }
                             },
                             notificationToggleEnabled = notificationToggleEnabled,
                             onNotificationToggleChange = {
                                 notificationToggleEnabled = it
                                 settingsRepository.notificationToggleEnabled = it
+                                if (isConnected) {
+                                    val nm = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                                    nm?.notify(
+                                        de.blinkt.openvpn.core.CorvusNotificationHelper.NOTIFICATION_ID,
+                                        de.blinkt.openvpn.core.CorvusNotificationHelper.buildNotification(this@MainActivity, "Connected", true)
+                                    )
+                                }
                             },
                             onImportCustomOvpnClick = {
                                 unityAdsManager.showRewardedAd(this@MainActivity) {
@@ -484,6 +527,7 @@ class MainActivity : ComponentActivity() {
                 targetServer = list.values.flatten().firstOrNull() ?: server
             }
         }
+        settingsRepository.lastConnectedServerId = targetServer.id
         activeServerForVpn = targetServer
         val intent = android.net.VpnService.prepare(this)
         if (intent != null) {
@@ -564,5 +608,10 @@ class MainActivity : ComponentActivity() {
             n.contains("vietnam") -> "VN"
             else -> "UN"
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        com.corvus.vpn.util.MockLocationManager.clearMockLocation(this)
     }
 }

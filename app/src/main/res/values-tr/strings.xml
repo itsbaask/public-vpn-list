@@ -136,4 +136,10 @@
     <string name="connection_failed_try_another">Bağlantı başarısız oldu. Lütfen başka bir sunucu deneyin.</string>
     <string name="connection_notice">Bağlantı Bildirimi</string>
     <string name="try_another_server">Başka bir sunucu seç</string>
+    <string name="kill_switch_dialog_title">Kill Switch Kurulumu</string>
+    <string name="kill_switch_dialog_desc">Tam sızıntı koruması sağlamak için Android, sistem ayarlarında \'Her zaman açık VPN\' ve \'VPN olmadan bağlantıları engelle\' seçeneklerinin etkinleştirilmesini gerektirir.</string>
+    <string name="open_vpn_settings">VPN Ayarlarını Aç</string>
+    <string name="mock_gps_dialog_title">Sahte Konum Kurulumu</string>
+    <string name="mock_gps_dialog_desc">GPS konumunuzu VPN sunucusuyla eşleştirmek için Geliştirici Seçenekleri\'nde Corvus VPN\'i sahte konum uygulaması olarak seçin.</string>
+    <string name="open_developer_options">Geliştirici Seçenekleri</string>
 </resources>

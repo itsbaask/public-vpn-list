@@ -141,4 +141,10 @@
     <string name="connection_failed_try_another">فشل الاتصال، يرجى تجربة سيرفر آخر</string>
     <string name="connection_notice">تنبيه الاتصال</string>
     <string name="try_another_server">اختيار سيرفر آخر</string>
+    <string name="kill_switch_dialog_title">إعداد مفتاح الحماية (Kill Switch)</string>
+    <string name="kill_switch_dialog_desc">لضمان حظر تسريب البيانات بالكامل، يتطلب نظام أندرويد تفعيل \'الشبكة الافتراضية الدائمة\' و\'حظر الاتصالات دون VPN\' من إعدادات النظام.</string>
+    <string name="open_vpn_settings">فتح إعدادات VPN</string>
+    <string name="mock_gps_dialog_title">إعداد تزييف الموقع الجغرافي</string>
+    <string name="mock_gps_dialog_desc">لمطابقة موقع الـ GPS مع دولة السيرفر المتصل، يرجى تحديد تطبيق Corvus VPN كتطبيق للموقع الوهمي في خيارات المطور.</string>
+    <string name="open_developer_options">فتح خيارات المطور</string>
 </resources>

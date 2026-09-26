@@ -136,4 +136,10 @@
     <string name="connection_failed_try_another">Сбой подключения. Пожалуйста, попробуйте другой сервер.</string>
     <string name="connection_notice">Уведомление о подключении</string>
     <string name="try_another_server">Выбрать другой сервер</string>
+    <string name="kill_switch_dialog_title">Настройка Kill Switch</string>
+    <string name="kill_switch_dialog_desc">Для полной защиты от утечек Android требует включения \'Постоянная VPN\' и \'Блокировать соединения без VPN\' в системных настройках.</string>
+    <string name="open_vpn_settings">Настройки VPN</string>
+    <string name="mock_gps_dialog_title">Фиктивное местоположение</string>
+    <string name="mock_gps_dialog_desc">Чтобы подменить координаты GPS под сервер VPN, выберите Corvus VPN в качестве приложения фиктивных местоположений в меню разработчика.</string>
+    <string name="open_developer_options">Для разработчиков</string>
 </resources>

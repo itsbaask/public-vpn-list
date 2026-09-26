@@ -136,4 +136,10 @@
     <string name="connection_failed_try_another">接続に失敗しました。別のサーバーをお試しください。</string>
     <string name="connection_notice">接続の通知</string>
     <string name="try_another_server">別のサーバーを選択</string>
+    <string name="kill_switch_dialog_title">キルスイッチの設定</string>
+    <string name="kill_switch_dialog_desc">完全な漏洩防止を保証するために、システム設定で「常時接続VPN」と「VPN以外の接続をブロック」を有効にする必要があります。</string>
+    <string name="open_vpn_settings">VPN設定を開く</string>
+    <string name="mock_gps_dialog_title">モック位置情報の設定</string>
+    <string name="mock_gps_dialog_desc">GPS位置をVPNサーバーの国と一致させるには、開発者向けオプションでCorvus VPNを仮の現在地情報アプリとして選択してください。</string>
+    <string name="open_developer_options">開発者向けオプション</string>
 </resources>

@@ -6,6 +6,7 @@ import android.util.Log
 import com.corvus.vpn.R
 import com.corvus.vpn.data.ServerEntity
 import com.corvus.vpn.data.ServerRepository
+import com.corvus.vpn.data.SettingsRepository
 import com.corvus.vpn.vpn.model.ConnectionStats
 import com.corvus.vpn.vpn.model.VpnState
 import com.corvus.vpn.vpn.model.VpnStats
@@ -26,7 +27,8 @@ import javax.inject.Singleton
 @Singleton
 class OpenVpnEngine @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val serverRepository: ServerRepository
+    private val serverRepository: ServerRepository,
+    private val settingsRepository: SettingsRepository
 ) : VpnEngine, VpnStatus.StateListener, VpnStatus.LogListener {
 
     private val _legacyEngineState = MutableStateFlow(ConnectionStatus.LEVEL_NOTCONNECTED)
@@ -85,6 +87,14 @@ class OpenVpnEngine @Inject constructor(
             cp.parseConfig(StringReader(config))
             val vp = cp.convertProfile()
             vp.mName = server.name
+
+            // Power Feature: Allow LAN Devices
+            vp.mAllowLocalLAN = settingsRepository.allowLanDevices
+
+            // Connection Control: Kill Switch leak protection
+            if (settingsRepository.killSwitchEnabled) {
+                vp.mBlockUnusedAddressFamilies = true
+            }
 
             // Prevent KeyChain null alias crash
             if (vp.mAlias == null) {

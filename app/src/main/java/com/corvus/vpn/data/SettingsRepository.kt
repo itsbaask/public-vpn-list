@@ -58,4 +58,7 @@ class SettingsRepository @Inject constructor(
             _languageFlow.value = value
         }
 
+    var lastConnectedServerId: String?
+        get() = prefs.getString("last_connected_server_id", null)
+        set(value) = prefs.edit().putString("last_connected_server_id", value).apply()
 }

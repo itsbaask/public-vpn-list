@@ -136,4 +136,10 @@
     <string name="connection_failed_try_another">连接失败，请尝试其他服务器。</string>
     <string name="connection_notice">连接提示</string>
     <string name="try_another_server">选择其他服务器</string>
+    <string name="kill_switch_dialog_title">Kill Switch 设置</string>
+    <string name="kill_switch_dialog_desc">为确保完全防泄漏保护，Android 要求在系统设置中启用“始终开启的 VPN”和“阻止没有 VPN 的连接”。</string>
+    <string name="open_vpn_settings">打开 VPN 设置</string>
+    <string name="mock_gps_dialog_title">模拟 GPS 位置</string>
+    <string name="mock_gps_dialog_desc">要将 GPS 位置伪装为 VPN 服务器所在国家，请在开发者选项中选择 Corvus VPN 作为模拟位置信息应用。</string>
+    <string name="open_developer_options">开发者选项</string>
 </resources>

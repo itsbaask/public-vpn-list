@@ -955,6 +955,12 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
             // Setting this false, will cause the VPN to inherit the underlying network metered
             // value
             builder.setMetered(false);
+            try {
+                android.content.SharedPreferences corvusPrefs = getSharedPreferences("corvus_settings", MODE_PRIVATE);
+                if (corvusPrefs != null && corvusPrefs.getBoolean("kill_switch", false)) {
+                    builder.setBlocking(true);
+                }
+            } catch (Exception ignored) {}
         }
 
         String session = mProfile.mName;

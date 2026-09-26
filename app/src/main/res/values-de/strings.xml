@@ -120,4 +120,10 @@
     <string name="connection_failed_try_another">Verbindung fehlgeschlagen. Bitte versuchen Sie einen anderen Server.</string>
     <string name="connection_notice">Verbindungshinweis</string>
     <string name="try_another_server">Anderen Server wählen</string>
+    <string name="kill_switch_dialog_title">Kill-Switch-Einrichtung</string>
+    <string name="kill_switch_dialog_desc">Um absoluten Auslaufschutz zu gewährleisten, verlangt Android die Aktivierung von \'Durchgehendes VPN\' und \'Verbindungen ohne VPN blockieren\' in den Systemeinstellungen.</string>
+    <string name="open_vpn_settings">VPN-Einstellungen öffnen</string>
+    <string name="mock_gps_dialog_title">Mock-Standort einrichten</string>
+    <string name="mock_gps_dialog_desc">Um Ihren GPS-Standort an den VPN-Server anzupassen, wählen Sie Corvus VPN als App für simulierte Standorte in den Entwickleroptionen aus.</string>
+    <string name="open_developer_options">Entwickleroptionen</string>
 </resources>

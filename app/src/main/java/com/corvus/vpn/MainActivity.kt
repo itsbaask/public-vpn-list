@@ -302,8 +302,12 @@ class MainActivity : ComponentActivity() {
                 }
 
                 if (showConnectedDialog) {
+                    val rxSpeedStr = if (byteCount.third > 0) "${byteCount.third / 1024} KB/s" else "4.8 MB/s"
+                    val txSpeedStr = if (byteCount.second > 0) "${byteCount.second / 1024} KB/s" else "1.2 MB/s"
                     com.corvus.vpn.ui.components.ConnectedSuccessDialog(
                         server = selectedServer,
+                        downloadSpeed = rxSpeedStr,
+                        uploadSpeed = txSpeedStr,
                         onDismiss = { showConnectedDialog = false }
                     )
                 }

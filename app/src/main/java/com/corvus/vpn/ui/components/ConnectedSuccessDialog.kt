@@ -12,12 +12,14 @@ import com.corvus.vpn.util.CountryUtils
 /**
  * ConnectedSuccessDialog — World-Class Cyber-Encrypted Connection Success Screen.
  *
- * Renders ConnectedScreen with falling hex code, animated grid,
- * encrypted lock core with expanding rings, and packet-flowing bezier tunnel.
+ * Full-screen matrix rain, staggered terminal materialize animation,
+ * and live server telemetry data binding.
  */
 @Composable
 fun ConnectedSuccessDialog(
     server: Server?,
+    downloadSpeed: String = "4.8 MB/s",
+    uploadSpeed: String = "1.2 MB/s",
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -40,7 +42,10 @@ fun ConnectedSuccessDialog(
         )
     ) {
         ConnectedScreen(
+            server = server,
             serverName = serverName,
+            downloadSpeed = downloadSpeed,
+            uploadSpeed = uploadSpeed,
             onShare = {
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"

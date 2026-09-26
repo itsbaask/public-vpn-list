@@ -6,6 +6,7 @@ import android.net.VpnManager
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.corvus.vpn.R
 import com.corvus.vpn.data.ServerEntity
 import com.corvus.vpn.vpn.model.ConnectionStats
 import com.corvus.vpn.vpn.model.VpnState
@@ -38,7 +39,7 @@ class Ikev2Engine @Inject constructor(
 
     companion object {
         private const val TAG = "Ikev2Engine"
-        private const val CONNECTION_TIMEOUT_MS = 30_000L
+        private const val CONNECTION_TIMEOUT_MS = 20_000L
     }
 
     private val _state = MutableStateFlow<VpnState>(VpnState.Idle)
@@ -70,14 +71,14 @@ class Ikev2Engine @Inject constructor(
             // Parse credentials from config or URI
             val (username, password, psk) = parseIkev2Credentials(server)
 
-            // Connection timeout watchdog
+            // Connection timeout watchdog (20 seconds)
             connectionTimeoutJob?.cancel()
             connectionTimeoutJob = CoroutineScope(Dispatchers.Main).launch {
                 delay(CONNECTION_TIMEOUT_MS)
                 if (_state.value is VpnState.Connecting) {
                     Log.w(TAG, "IKEv2 connection timeout for server=${server.name}")
                     stop()
-                    _state.value = VpnState.Error("IKEv2 connection timed out — gateway unreachable or misconfigured.")
+                    _state.value = VpnState.Error(context.getString(R.string.connection_failed_try_another))
                 }
             }
 

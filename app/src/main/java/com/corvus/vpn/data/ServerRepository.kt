@@ -125,7 +125,9 @@ class ServerRepository @Inject constructor(
                         // config_uri: for OpenVPN this is the R2 .ovpn path; for modern protocols it's the connection URI (vless://, vmess://, ss://, trojan://)
                         // Backend bug fix: R2 stores profiles as numeric id (e.g. 2378147.ovpn), but servers.json advertises pvl_2378147.ovpn.
                         val cleanId = dto.id.removePrefix("pvl_")
-                        val rawPath = dto.config_uri ?: dto.profile_url ?: "v1/profiles/$cleanId.ovpn"
+                        val rawPath = dto.config_uri?.takeIf { it.isNotBlank() }
+                            ?: dto.profile_url?.takeIf { it.isNotBlank() }
+                            ?: "v1/profiles/$cleanId.ovpn"
                         val uri = rawPath.replace("/v1/profiles/pvl_", "/v1/profiles/")
                             .replace("v1/profiles/pvl_", "v1/profiles/")
 
@@ -424,12 +426,18 @@ class ServerRepository @Inject constructor(
         // 3. Download from R2 CDN
         val CDN_BASE = "https://pub-cb24fe4df15e483d8cb39116dcff1f7a.r2.dev/"
         val cleanId = serverId.removePrefix("pvl_")
+        val cleanStorageId = serverId.lowercase()
+            .replace("vpngate_", "")
+            .replace(Regex("[^a-z0-9\\-]"), "-")
+            .replace(Regex("-+"), "-")
+            .trim('-')
 
         // Build list of candidate paths to try in order (handles backend key discrepancy)
         val candidatePaths = listOfNotNull(
-            server?.configUri?.replace("/v1/profiles/pvl_", "/v1/profiles/"),
+            server?.configUri?.takeIf { it.isNotBlank() }?.replace("/v1/profiles/pvl_", "/v1/profiles/"),
             "v1/profiles/$cleanId.ovpn",
-            server?.configUri,
+            "v1/profiles/$cleanStorageId.ovpn",
+            server?.configUri?.takeIf { it.isNotBlank() },
             server?.ovpnConfig?.takeIf { it.startsWith("v1/profiles/") },
             "v1/profiles/$serverId.ovpn"
         ).distinct()

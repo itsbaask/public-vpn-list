@@ -132,4 +132,8 @@
     <string name="yearly_period_info">mês — Poupe 58% / $4.16</string>
     <string name="monthly_period_info">mês / $9.99</string>
     <string name="weekly_period_info">semana / $4.99</string>
-<string name="feature_priority_support">Suporte Prioritário 24/7</string><string name="free_premium_label">Premium Grátis</string></resources>
+<string name="feature_priority_support">Suporte Prioritário 24/7</string><string name="free_premium_label">Premium Grátis</string>
+    <string name="connection_failed_try_another">Falha na conexão. Por favor, tente outro servidor.</string>
+    <string name="connection_notice">Aviso de conexão</string>
+    <string name="try_another_server">Escolher outro servidor</string>
+</resources>

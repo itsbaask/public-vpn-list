@@ -3,6 +3,7 @@ package com.corvus.vpn.vpn.engines
 import android.content.Context
 import android.net.VpnService
 import android.util.Log
+import com.corvus.vpn.R
 import com.corvus.vpn.data.ServerEntity
 import com.corvus.vpn.data.ServerRepository
 import com.corvus.vpn.vpn.model.ConnectionStats
@@ -36,7 +37,7 @@ class SingBoxEngine @Inject constructor(
 
     companion object {
         private const val TAG = "SingBoxEngine"
-        private const val CONNECTION_TIMEOUT_MS = 30_000L
+        private const val CONNECTION_TIMEOUT_MS = 20_000L
 
         // Supported URI schemes
         private val SUPPORTED_SCHEMES = setOf(
@@ -102,14 +103,14 @@ class SingBoxEngine @Inject constructor(
                 return@withContext Result.failure(RuntimeException("SingBoxVpnService failed to start"))
             }
 
-            // Start connection timeout watchdog
+            // Start connection timeout watchdog (20 seconds)
             connectionTimeoutJob?.cancel()
             connectionTimeoutJob = CoroutineScope(Dispatchers.Main).launch {
                 delay(CONNECTION_TIMEOUT_MS)
                 if (_state.value is VpnState.Connecting) {
                     Log.w(TAG, "Sing-box connection timeout for server=${server.name}")
                     stop()
-                    _state.value = VpnState.Error("Connection timeout — server unreachable or blocked.")
+                    _state.value = VpnState.Error(context.getString(R.string.connection_failed_try_another))
                 }
             }
 
@@ -129,7 +130,11 @@ class SingBoxEngine @Inject constructor(
                             Log.d(TAG, "Sing-box tunnel connected for server=${server.name}")
                         }
                         SingBoxVpnService.TunnelState.DISCONNECTED -> {
-                            if (_state.value !is VpnState.Idle) {
+                            if (_state.value is VpnState.Connecting) {
+                                connectionTimeoutJob?.cancel()
+                                running = false
+                                _state.value = VpnState.Error(context.getString(R.string.connection_failed_try_another))
+                            } else if (_state.value !is VpnState.Idle) {
                                 connectionTimeoutJob?.cancel()
                                 running = false
                                 _state.value = VpnState.Idle
@@ -138,7 +143,7 @@ class SingBoxEngine @Inject constructor(
                         SingBoxVpnService.TunnelState.ERROR -> {
                             connectionTimeoutJob?.cancel()
                             running = false
-                            _state.value = VpnState.Error("Tunnel connection failed — server rejected the connection.")
+                            _state.value = VpnState.Error(context.getString(R.string.connection_failed_try_another))
                             Log.e(TAG, "SingBoxVpnService reported ERROR for server=${server.name}")
                         }
                         SingBoxVpnService.TunnelState.CONNECTING -> {

@@ -3,6 +3,7 @@ package com.corvus.vpn.vpn.engines
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.corvus.vpn.R
 import com.corvus.vpn.data.ServerEntity
 import com.corvus.vpn.data.ServerRepository
 import com.corvus.vpn.vpn.model.ConnectionStats
@@ -61,22 +62,22 @@ class OpenVpnEngine @Inject constructor(
             _state.value = VpnState.Connecting(server)
             running = true
 
-            // 30-second connection timeout watchdog (real OpenVPN handshakes can take up to 20s)
+            // 20-second connection timeout watchdog (as requested by user)
             connectionTimeoutJob?.cancel()
             connectionTimeoutJob = CoroutineScope(Dispatchers.Main).launch {
-                delay(30000L)
+                delay(20000L)
                 val currentState = _state.value
                 if (currentState is VpnState.Connecting) {
                     Log.w("OpenVpnEngine", "Connection timeout reached for server=${server.name}")
                     stop()
-                    _state.value = VpnState.Error("Connection timeout — server unreachable or blocked.")
+                    _state.value = VpnState.Error(context.getString(R.string.connection_failed_try_another))
                 }
             }
 
             val config = serverRepository.fetchFullConfig(server.id)
             if (config.isNullOrBlank()) {
                 connectionTimeoutJob?.cancel()
-                _state.value = VpnState.Error("Could not download VPN configuration from server. Check your connection and try again.")
+                _state.value = VpnState.Error(context.getString(R.string.connection_failed_try_another))
                 return@withContext Result.failure(IllegalStateException("No valid OpenVPN configuration available for server=${server.id}"))
             }
 
@@ -169,7 +170,12 @@ class OpenVpnEngine @Inject constructor(
                         _state.value = VpnState.Connected(server, System.currentTimeMillis(), ConnectionStats())
                     }
                     ConnectionStatus.LEVEL_NOTCONNECTED -> {
-                        if (_state.value is VpnState.Disconnecting) {
+                        if (_state.value is VpnState.Connecting) {
+                            connectionTimeoutJob?.cancel()
+                            connectionTimeoutJob = null
+                            running = false
+                            _state.value = VpnState.Error(context.getString(R.string.connection_failed_try_another))
+                        } else if (_state.value is VpnState.Disconnecting) {
                             connectionTimeoutJob?.cancel()
                             connectionTimeoutJob = null
                             running = false
@@ -180,13 +186,13 @@ class OpenVpnEngine @Inject constructor(
                         connectionTimeoutJob?.cancel()
                         connectionTimeoutJob = null
                         running = false
-                        _state.value = VpnState.Error("Authentication failed")
+                        _state.value = VpnState.Error(context.getString(R.string.connection_failed_try_another))
                     }
                     ConnectionStatus.LEVEL_NONETWORK -> {
                         connectionTimeoutJob?.cancel()
                         connectionTimeoutJob = null
                         running = false
-                        _state.value = VpnState.Error("No network connection")
+                        _state.value = VpnState.Error(context.getString(R.string.connection_failed_try_another))
                     }
                     else -> {}
                 }

@@ -2,6 +2,7 @@ package com.corvus.vpn.vpn
 
 import android.content.Context
 import android.util.Log
+import com.corvus.vpn.R
 import com.corvus.vpn.data.ServerEntity
 import com.corvus.vpn.data.ServerRepository
 import com.corvus.vpn.ui.servers.Server
@@ -155,22 +156,20 @@ class VpnManager @Inject constructor(
             return
         }
 
-        // Wait up to 32 seconds for a real connection confirmation from the engine.
-        // This must be >= the engine's own internal timeout (30s for OpenVPN).
-        // If the engine transitions to Error or Idle on its own, the stateObservationJob picks it up.
+        // Wait up to 20 seconds for a real connection confirmation from the engine (as requested by user).
         withContext(Dispatchers.IO) {
-            withTimeoutOrNull(32_000L) {
+            withTimeoutOrNull(20_000L) {
                 while (_vpnState.value !is VpnState.Connected && _vpnState.value !is VpnState.Error && _vpnState.value !is VpnState.Idle) {
                     delay(300)
                 }
             }
         }
 
-        // If still Connecting after 32s (engine never reported back), treat as timeout
+        // If still Connecting after 20s (engine never reported back), treat as timeout
         if (_vpnState.value is VpnState.Connecting) {
             Log.w("VpnManager", "VpnManager wait timeout for server=${server.id} — engine never reported Connected or Error")
             try { activeEngine?.stop() } catch (ignored: Throwable) {}
-            _vpnState.value = VpnState.Error("Connection timed out. The server may be offline or blocked.")
+            _vpnState.value = VpnState.Error(context.getString(R.string.connection_failed_try_another))
         }
     }
 

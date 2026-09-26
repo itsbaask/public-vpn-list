@@ -132,4 +132,8 @@
     <string name="yearly_period_info">月 — 58% 割引 / $4.16</string>
     <string name="monthly_period_info">月 / $9.99</string>
     <string name="weekly_period_info">週 / $4.99</string>
-<string name="feature_priority_support">24/7 優先サポート</string><string name="free_premium_label">無料プレミアム</string></resources>
+<string name="feature_priority_support">24/7 優先サポート</string><string name="free_premium_label">無料プレミアム</string>
+    <string name="connection_failed_try_another">接続に失敗しました。別のサーバーをお試しください。</string>
+    <string name="connection_notice">接続の通知</string>
+    <string name="try_another_server">別のサーバーを選択</string>
+</resources>

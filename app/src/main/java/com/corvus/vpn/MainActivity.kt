@@ -37,6 +37,24 @@ import androidx.lifecycle.lifecycleScope
 
 import com.corvus.vpn.ads.UnityAdsManager
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.corvus.vpn.ui.theme.*
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -172,8 +190,11 @@ class MainActivity : ComponentActivity() {
                         vpnState is VpnState.Disconnecting ||
                         vpnState is VpnState.Cancelling
 
+                var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
+
                 LaunchedEffect(vpnState) {
                     if (vpnState is VpnState.Connected) {
+                        connectionErrorMessage = null
                         if (!hasShownDialogForCurrentSession) {
                             showConnectedDialog = true
                             hasShownDialogForCurrentSession = true
@@ -187,11 +208,97 @@ class MainActivity : ComponentActivity() {
                         sessionManager.startSession(initialSeconds) {
                             vpnManager.stopVpn()
                         }
-                    } else if (vpnState is VpnState.Idle || vpnState is VpnState.Error) {
+                    } else if (vpnState is VpnState.Error) {
+                        sessionManager.stopSession()
+                        hasShownDialogForCurrentSession = false
+                        showConnectedDialog = false
+                        val rawMsg = (vpnState as VpnState.Error).reason
+                        connectionErrorMessage = if (rawMsg.contains("failed", ignoreCase = true)
+                            || rawMsg.contains("timeout", ignoreCase = true)
+                            || rawMsg.contains("unreachable", ignoreCase = true)
+                            || rawMsg.contains("No valid", ignoreCase = true)
+                            || rawMsg.contains("Connection error", ignoreCase = true)) {
+                            getString(R.string.connection_failed_try_another)
+                        } else {
+                            rawMsg
+                        }
+                    } else if (vpnState is VpnState.Idle) {
                         sessionManager.stopSession()
                         hasShownDialogForCurrentSession = false
                         showConnectedDialog = false
                     }
+                }
+
+                if (connectionErrorMessage != null) {
+                    AlertDialog(
+                        onDismissRequest = { connectionErrorMessage = null },
+                        containerColor = CrowSurface,
+                        titleContentColor = CrowText,
+                        textContentColor = CrowMuted,
+                        shape = RoundedCornerShape(22.dp),
+                        icon = {
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF33151E)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF5252),
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        },
+                        title = {
+                            Text(
+                                text = stringResource(R.string.connection_notice),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = connectionErrorMessage ?: "",
+                                fontSize = 15.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                                lineHeight = 21.sp
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    connectionErrorMessage = null
+                                    currentScreen = "servers"
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = CrowAccent,
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.try_another_server),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = { connectionErrorMessage = null }
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.close_button),
+                                    color = CrowMuted
+                                )
+                            }
+                        }
+                    )
                 }
 
                 if (showConnectedDialog) {

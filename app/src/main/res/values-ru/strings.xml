@@ -132,4 +132,8 @@
     <string name="yearly_period_info">мес. — Скидка 58% / $4.16</string>
     <string name="monthly_period_info">месяц / $9.99</string>
     <string name="weekly_period_info">неделя / $4.99</string>
-<string name="feature_priority_support">Поддержка 24/7</string><string name="free_premium_label">Бесплатный Премиум</string></resources>
+<string name="feature_priority_support">Поддержка 24/7</string><string name="free_premium_label">Бесплатный Премиум</string>
+    <string name="connection_failed_try_another">Сбой подключения. Пожалуйста, попробуйте другой сервер.</string>
+    <string name="connection_notice">Уведомление о подключении</string>
+    <string name="try_another_server">Выбрать другой сервер</string>
+</resources>

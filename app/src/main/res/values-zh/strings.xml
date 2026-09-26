@@ -132,4 +132,8 @@
     <string name="yearly_period_info">月 — 省 58% / $4.16</string>
     <string name="monthly_period_info">月 / $9.99</string>
     <string name="weekly_period_info">周 / $4.99</string>
-<string name="feature_priority_support">7x24 小时优先客服</string><string name="free_premium_label">免费高级版</string></resources>
+<string name="feature_priority_support">7x24 小时优先客服</string><string name="free_premium_label">免费高级版</string>
+    <string name="connection_failed_try_another">连接失败，请尝试其他服务器。</string>
+    <string name="connection_notice">连接提示</string>
+    <string name="try_another_server">选择其他服务器</string>
+</resources>

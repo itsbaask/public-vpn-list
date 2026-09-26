@@ -513,5 +513,6 @@
     <string name="notification_connecting">● Connecting…</string>
     <string name="notification_channel_name">Corvus VPN Connection</string>
     <string name="notification_channel_desc">Active VPN protection status and controls</string>
+    <string name="connection_failed_try_another">Connection failed. Please try another server.</string>
 
 </resources>

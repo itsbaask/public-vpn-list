@@ -138,5 +138,7 @@
     <string name="notification_connecting">● جاري الاتصال…</string>
     <string name="notification_channel_name">اتصال Corvus VPN</string>
     <string name="notification_channel_desc">حالة اتصال وتشفير شبكة الـ VPN</string>
-    <string name="feature_priority_support">دعم فني 24/7</string>
+    <string name="connection_failed_try_another">فشل الاتصال، يرجى تجربة سيرفر آخر</string>
+    <string name="connection_notice">تنبيه الاتصال</string>
+    <string name="try_another_server">اختيار سيرفر آخر</string>
 </resources>

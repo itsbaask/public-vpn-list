@@ -133,4 +133,7 @@
     <string name="monthly_period_info">month / $9.99</string>
     <string name="weekly_period_info">week / $4.99</string>
     <string name="free_premium_label">Free Premium</string>
+    <string name="connection_failed_try_another">Connection failed. Please try another server.</string>
+    <string name="connection_notice">Connection Notice</string>
+    <string name="try_another_server">Try Another Server</string>
 </resources>

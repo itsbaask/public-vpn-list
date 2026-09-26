@@ -501,7 +501,7 @@ class ServerInfo:
 
 class MultiSourceHarvester:
     def __init__(self, access_key: Optional[str] = None, session: Optional[requests.Session] = None):
-        self.access_key = access_key or "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
+        self.access_key = (access_key or "").strip() or "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
         if session:
             self.session = session
         elif HAS_CLOUDSCRAPER:
@@ -677,6 +677,8 @@ class MultiSourceHarvester:
                             config_uri=config_uri
                         )
                         servers[sid] = server_info
+                else:
+                    logger.warning(f"PublicVPNList v1 API returned HTTP {res.status_code} for protocol {proto}: {res.text[:120]}")
 
             except Exception as e:
                 logger.warning(f"Failed to fetch PublicVPNList v1 protocol {proto}: {e}")

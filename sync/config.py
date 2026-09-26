@@ -5,7 +5,7 @@ from typing import Optional
 @dataclass
 class Config:
     base_url: str = os.getenv("PUBLICVPNLIST_BASE_URL", "https://publicvpnlist.com")
-    access_key: Optional[str] = os.getenv("PUBLICVPNLIST_ACCESS_KEY")
+    access_key: Optional[str] = os.getenv("PUBLICVPNLIST_ACCESS_KEY", "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc")
     public_data_base_url: str = os.getenv("PUBLIC_DATA_BASE_URL", "https://vpn.example.com")
 
     # R2 Storage

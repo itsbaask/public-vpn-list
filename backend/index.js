@@ -31,13 +31,17 @@ export default {
       }
 
       if (!data) {
+        // No server data available yet — return 503 so the app knows to use its own fallback (VPNGate).
+        // Returning 200 with an empty list causes the app to skip VPNGate and show no servers.
         return new Response(JSON.stringify({
-          updated_at: new Date().toISOString(),
-          servers: []
+          error: "server_list_unavailable",
+          message: "Server list is not yet populated. The sync engine runs every 10 minutes.",
+          updated_at: new Date().toISOString()
         }), {
-          status: 200,
+          status: 503,
           headers: {
             "Content-Type": "application/json",
+            "Retry-After": "60",
             ...corsHeaders
           }
         });

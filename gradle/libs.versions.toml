@@ -19,6 +19,7 @@ unityAds = "4.12.2"
 graphicsShapes = "1.0.0-rc01"
 securityCrypto = "1.1.0-alpha06"
 ksp = "2.0.20-1.0.25"
+libbox = "1.10.7"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -55,6 +56,9 @@ okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor",
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 
 unity-ads = { group = "com.unity3d.ads", name = "unity-ads", version.ref = "unityAds" }
+
+# NOTE: sing-box libbox is included as a local AAR in app/libs/libbox.aar
+# See app/libs/README_LIBBOX.md for download instructions.
 
 # ics-openvpn dependencies
 androidx-annotation = { group = "androidx.annotation", name = "annotation", version = "1.8.0" }

@@ -28,7 +28,7 @@ def run_sync():
     logger.info(f"Dry run mode: {config.dry_run}")
 
     storage = R2StorageAdapter(config)
-    harvester = MultiSourceHarvester()
+    harvester = MultiSourceHarvester(access_key=config.access_key)
     downloader = OvpnDownloader(base_url=config.base_url, access_key=config.access_key)
 
     # 1. Fetch previous manifest from Cloudflare R2

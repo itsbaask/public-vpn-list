@@ -43,38 +43,10 @@ class ServerRepository @Inject constructor(
         }
     }
 
+    // No default fallback servers — real servers must be fetched from the CDN backend.
+    // Loading a stub with 127.0.0.1 causes a fake "Connected" state with no actual tunnel.
     private fun loadDefaultFallbackServers() {
-        val defaultServers = listOf(
-            ServerEntity(
-                id = "default_us_01",
-                protocol = "OPENVPN",
-                engine = "OPENVPN",
-                name = "United States (Default)",
-                countryCode = "US",
-                countryName = "United States",
-                flag = "🇺🇸",
-                ping = 35,
-                speed = 100L,
-                score = 9999L,
-                ovpnConfig = """
-                    client
-                    dev tun
-                    proto udp
-                    remote 127.0.0.1 1194
-                    resolv-retry infinite
-                    nobind
-                    persist-key
-                    persist-tun
-                    remote-cert-tls server
-                    cipher AES-128-CBC
-                    auth SHA1
-                    verb 3
-                """.trimIndent(),
-                source = "default_fallback",
-                tier = "free"
-            )
-        )
-        _serversFlow.value = defaultServers
+        _serversFlow.value = emptyList()
     }
 
     private fun loadCachedServers() {
@@ -149,34 +121,30 @@ class ServerRepository @Inject constructor(
                         val countryNameClean = CountryUtils.getCountryName(code)
                         val flagEmoji = CountryUtils.getFlagEmoji(code)
                         val calculatedTier = if (dto.tier.isNotBlank()) dto.tier else "free"
-                        val uri = dto.config_uri ?: dto.profile_url ?: "v1/profiles/${dto.id}.ovpn"
+
+                        // config_uri: for OpenVPN this is the R2 .ovpn path; for modern protocols it's the connection URI (vless://, vmess://, ss://, trojan://)
+                        // Backend bug fix: R2 stores profiles as numeric id (e.g. 2378147.ovpn), but servers.json advertises pvl_2378147.ovpn.
+                        val cleanId = dto.id.removePrefix("pvl_")
+                        val rawPath = dto.config_uri ?: dto.profile_url ?: "v1/profiles/$cleanId.ovpn"
+                        val uri = rawPath.replace("/v1/profiles/pvl_", "/v1/profiles/")
+                            .replace("v1/profiles/pvl_", "v1/profiles/")
 
                         val serverHost = dto.host.ifBlank { dto.exit_ip ?: "" }
                         val serverPort = if (dto.port > 0) dto.port else 1194
                         val serverTransport = dto.transport.ifBlank { "udp" }
 
-                        val generatedOvpn = if (protoUpper == "OPENVPN" && serverHost.isNotBlank() && !serverHost.startsWith("pvl_")) {
-                            """
-                                client
-                                dev tun
-                                proto $serverTransport
-                                remote $serverHost $serverPort
-                                resolv-retry infinite
-                                nobind
-                                persist-key
-                                persist-tun
-                                remote-cert-tls server
-                                cipher AES-128-GCM
-                                data-ciphers AES-128-GCM:AES-128-CBC:BF-CBC
-                                auth SHA1
-                                verb 3
-                            """.trimIndent()
-                        } else null
-
+                        // For OpenVPN: use cached full .ovpn (downloaded on connect), or null to trigger download.
+                        // Never generate a stub config — it won't have the correct CA/cert/key.
+                        // For modern protocols (vless/vmess/trojan/ss/wg/hysteria2): store the URI directly.
                         val finalOvpn = if (protoUpper == "OPENVPN") {
-                            cachedOvpn ?: generatedOvpn ?: uri
+                            cachedOvpn // null triggers fetchFullConfig() download on connect
                         } else {
-                            uri
+                            uri // connection URI for sing-box engine
+                        }
+
+                        val serverNameDisplay = when {
+                            serverHost.isNotBlank() && !serverHost.startsWith("pvl_") -> "$countryNameClean ($serverHost)"
+                            else -> "$countryNameClean (${dto.id})"
                         }
 
                         val entity = ServerEntity(
@@ -184,7 +152,7 @@ class ServerRepository @Inject constructor(
                             protocol = protoUpper,
                             engine = declaredEngine,
                             transportSecurity = dto.transport_security,
-                            name = "$countryNameClean (${serverHost.ifBlank { dto.id }})",
+                            name = serverNameDisplay,
                             countryCode = code,
                             countryName = countryNameClean,
                             flag = flagEmoji,
@@ -419,82 +387,98 @@ class ServerRepository @Inject constructor(
         return Pair(host, port)
     }
 
-    suspend fun fetchFullConfig(serverId: String): String = withContext(Dispatchers.IO) {
+    /**
+     * Fetches the complete OpenVPN config for a server.
+     *
+     * Priority order:
+     * 1. Local cache (profilePrefs) — fastest, avoids redundant network calls.
+     * 2. Real .ovpn download from R2 CDN via [VpnApi.getProfileByUrl].
+     * 3. VPNGate CSV embedded config (servers from the vpngate source already have full config).
+     *
+     * Returns null if no valid config could be obtained.
+     * The caller (OpenVpnEngine) must handle null by showing an error to the user.
+     */
+    suspend fun fetchFullConfig(serverId: String): String? = withContext(Dispatchers.IO) {
         val server = _serversFlow.value.find { it.id == serverId }
-        val rawConfig = when {
-            !server?.ovpnConfig.isNullOrBlank() && "remote " in server!!.ovpnConfig!! -> server.ovpnConfig!!
-            !profilePrefs.getString("profile_$serverId", null).isNullOrBlank() -> profilePrefs.getString("profile_$serverId", null)!!
-            else -> {
-                val targetUri = server?.configUri ?: "v1/profiles/$serverId.ovpn"
-                try {
-                    val response = vpnApi.getProfileByUrl(targetUri)
-                    if (response.isSuccessful && response.body() != null) {
-                        val bodyStr = response.body()!!.string()
-                        if (bodyStr.isNotBlank() && ("client" in bodyStr || "remote " in bodyStr)) {
-                            profilePrefs.edit().putString("profile_$serverId", bodyStr).apply()
-                            bodyStr
-                        } else ""
+
+        // 1. Return cached profile if available and non-blank
+        val cached = profilePrefs.getString("profile_$serverId", null)
+        if (!cached.isNullOrBlank() && (cached.contains("client") || cached.contains("dev tun"))) {
+            Log.d("ServerRepository", "Using cached profile for server=$serverId")
+            return@withContext cached
+        }
+
+        // 2. If the server already has a full embedded .ovpn config (e.g. VPNGate CSV), use it directly
+        val embedded = server?.ovpnConfig
+        if (!embedded.isNullOrBlank()
+            && !embedded.startsWith("v1/profiles/")
+            && !embedded.startsWith("http")
+            && (embedded.contains("client") || embedded.contains("dev tun"))
+            && (embedded.contains("<ca>") || embedded.contains("ca "))
+        ) {
+            Log.d("ServerRepository", "Using embedded ovpn config for server=$serverId")
+            profilePrefs.edit().putString("profile_$serverId", embedded).apply()
+            return@withContext embedded
+        }
+
+        // 3. Download from R2 CDN
+        val CDN_BASE = "https://pub-cb24fe4df15e483d8cb39116dcff1f7a.r2.dev/"
+        val cleanId = serverId.removePrefix("pvl_")
+
+        // Build list of candidate paths to try in order (handles backend key discrepancy)
+        val candidatePaths = listOfNotNull(
+            server?.configUri?.replace("/v1/profiles/pvl_", "/v1/profiles/"),
+            "v1/profiles/$cleanId.ovpn",
+            server?.configUri,
+            server?.ovpnConfig?.takeIf { it.startsWith("v1/profiles/") },
+            "v1/profiles/$serverId.ovpn"
+        ).distinct()
+
+        for (candidate in candidatePaths) {
+            val profileUrl = when {
+                candidate.startsWith("http://") || candidate.startsWith("https://") -> candidate
+                else -> CDN_BASE + candidate.trimStart('/')
+            }
+
+            Log.d("ServerRepository", "Attempting .ovpn download: $profileUrl (server=$serverId)")
+            try {
+                val response = vpnApi.getProfileByUrl(profileUrl)
+                if (response.isSuccessful && response.body() != null) {
+                    val ovpnText = response.body()!!.string()
+                    if (ovpnText.isNotBlank()
+                        && (ovpnText.contains("client") || ovpnText.contains("dev tun"))
+                        && (ovpnText.contains("<ca>") || ovpnText.contains("ca "))
+                    ) {
+                        Log.d("ServerRepository", "Real .ovpn downloaded successfully from $profileUrl for server=$serverId (${ovpnText.length} chars)")
+                        profilePrefs.edit().putString("profile_$serverId", ovpnText).apply()
+                        return@withContext ovpnText
                     } else {
-                        ""
+                        Log.w("ServerRepository", "Content from $profileUrl did not contain valid OVPN directives")
                     }
-                } catch (e: Exception) {
-                    ""
+                } else {
+                    Log.w("ServerRepository", "HTTP ${response.code()} from $profileUrl, trying next candidate...")
                 }
+            } catch (e: Exception) {
+                Log.w("ServerRepository", "Failed from $profileUrl: ${e.message}")
             }
         }
 
-        val (parsedHost, parsedPort) = if (rawConfig.isNotBlank() && "!DOCTYPE" !in rawConfig && "html" !in rawConfig.lowercase()) {
-            extractRemoteHostPort(rawConfig)
-        } else {
-            Pair("", 1194)
-        }
-
-        val baseConfig = if (rawConfig.isBlank() || "!DOCTYPE" in rawConfig || "html" in rawConfig.lowercase()) {
-            val hostOrIp = when {
-                parsedHost.isNotBlank() -> parsedHost
-                !server?.host.isNullOrBlank() && !server!!.host.startsWith("pvl_") -> server.host
-                else -> "219.100.37.100"
-            }
-            val port = if (parsedPort > 0) parsedPort else (server?.port ?: 1194)
-            val proto = server?.transport ?: "udp"
-            """
-                client
-                dev tun
-                proto $proto
-                remote $hostOrIp $port
-                resolv-retry infinite
-                nobind
-                persist-key
-                persist-tun
-                remote-cert-tls server
-                cipher AES-128-GCM
-                data-ciphers AES-128-GCM:AES-128-CBC:BF-CBC
-                auth SHA1
-                verb 3
-            """.trimIndent()
-        } else {
-            rawConfig
-        }
-
-        val lower = baseConfig.lowercase()
-        val finalConfig = buildString {
-            append(baseConfig)
-            if ("redirect-gateway" !in lower) {
-                append("\nredirect-gateway def1\n")
-            }
-            if ("dhcp-option dns" !in lower) {
-                append("\ndhcp-option DNS 8.8.8.8\ndhcp-option DNS 1.1.1.1\n")
-            }
-            if ("<ca>" !in lower && "ca " !in lower) {
-                append("\n<ca>\n-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJAK93r1234567890\n-----END CERTIFICATE-----\n</ca>\n")
-            }
-            if ("data-ciphers" !in lower && "cipher" !in lower) {
-                append("\ndata-ciphers DEFAULT:BF-CBC:AES-128-CBC:AES-256-CBC\n")
-            }
-        }
-
-        return@withContext finalConfig
+        Log.e("ServerRepository", "All candidate profile URLs failed for server=$serverId")
+        return@withContext null
     }
+
+    /**
+     * Returns the connection URI for a modern-protocol server (vless://, vmess://, ss://, trojan://, etc.)
+     * Used by SingBoxEngine.
+     */
+    fun getConnectionUri(serverId: String): String? {
+        val server = _serversFlow.value.find { it.id == serverId } ?: return null
+        val uri = server.ovpnConfig ?: server.configUri ?: return null
+        // Must be a URI scheme — not an .ovpn path
+        val isUri = uri.contains("://") && !uri.startsWith("v1/")
+        return if (isUri) uri else null
+    }
+
 
     suspend fun addCustomServer(customServer: com.corvus.vpn.ui.servers.Server) = withContext(Dispatchers.IO) {
         val entity = ServerEntity(

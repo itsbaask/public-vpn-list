@@ -8,7 +8,6 @@ import com.corvus.vpn.ui.servers.Server
 import com.corvus.vpn.vpn.engines.VpnEngine
 import com.corvus.vpn.vpn.engines.VpnEngineFactory
 import com.corvus.vpn.vpn.model.ConnectionStats
-import com.corvus.vpn.vpn.model.VpnEngineType
 import com.corvus.vpn.vpn.model.VpnProtocol
 import com.corvus.vpn.vpn.model.VpnState
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -138,34 +137,28 @@ class VpnManager @Inject constructor(
             Result.failure(e)
         }
 
-        // Wait up to 8 seconds for real connection. If it times out or fails, fallback to SingBoxEngine for guaranteed tunnel connection
-        val connectedSuccessfully = withContext(Dispatchers.IO) {
-            withTimeoutOrNull(8000L) {
-                while (_vpnState.value !is VpnState.Connected) {
+        if (result.isFailure) {
+            Log.e("VpnManager", "Engine start failed for server=${server.id}: ${result.exceptionOrNull()?.message}")
+            // State is already set by the engine (VpnState.Error). Don't override it here.
+            return
+        }
+
+        // Wait up to 32 seconds for a real connection confirmation from the engine.
+        // This must be >= the engine's own internal timeout (30s for OpenVPN).
+        // If the engine transitions to Error or Idle on its own, the stateObservationJob picks it up.
+        withContext(Dispatchers.IO) {
+            withTimeoutOrNull(32_000L) {
+                while (_vpnState.value !is VpnState.Connected && _vpnState.value !is VpnState.Error && _vpnState.value !is VpnState.Idle) {
                     delay(300)
                 }
-                true
             }
         }
 
-        if (result.isFailure || connectedSuccessfully == null) {
-            Log.w("VpnManager", "Primary engine failed or timed out. Falling back to SingBoxEngine for guaranteed tunnel connection...")
-            try {
-                activeEngine?.stop()
-            } catch (ignored: Throwable) {}
-
-            val fallbackEngine = engineFactory.create(VpnEngineType.SING_BOX)
-            activeEngine = fallbackEngine
-            val fallbackResult = fallbackEngine.start(server, activityContext ?: lastActivityContext)
-            if (fallbackResult.isSuccess) {
-                _vpnState.value = VpnState.Connected(server, System.currentTimeMillis(), ConnectionStats())
-                return
-            }
-        }
-
-        if (result.isFailure) {
-            Log.e("VpnManager", "Engine start failed for server=${server.id}")
-            _vpnState.value = VpnState.Error("Connection failed")
+        // If still Connecting after 32s (engine never reported back), treat as timeout
+        if (_vpnState.value is VpnState.Connecting) {
+            Log.w("VpnManager", "VpnManager wait timeout for server=${server.id} — engine never reported Connected or Error")
+            try { activeEngine?.stop() } catch (ignored: Throwable) {}
+            _vpnState.value = VpnState.Error("Connection timed out. The server may be offline or blocked.")
         }
     }
 

@@ -135,6 +135,22 @@ class OvpnDownloader:
 
     def download_profile(self, target: Any) -> DownloadResult:
         source_id = getattr(target, "source_id", getattr(target, "server_id", str(target)))
+        protocol = getattr(target, "protocol", "openvpn").lower()
+
+        # Priority -1: Non-OpenVPN Modern Protocols (vless, vmess, shadowsocks, trojan, hysteria2)
+        if protocol != "openvpn":
+            config_uri = getattr(target, "config_uri", "") or getattr(target, "profile_source_url", "") or f"{protocol}://{source_id}"
+            sha256_val = getattr(target, "config_sha256", "") or compute_sha256(config_uri)
+            return DownloadResult(
+                source_id=source_id,
+                target_type="modern_protocol_uri",
+                target_url="inline",
+                http_status=200,
+                content_type=f"application/x-{protocol}-config",
+                bytes_downloaded=len(config_uri.encode("utf-8")),
+                sha256=sha256_val,
+                content=config_uri
+            )
 
         # Priority 0: Inline Decoded OVPN Profile (from VPNGate CSV / Auto-OVPN / Seed Database)
         ovpn_inline = getattr(target, "ovpn_content", "")
@@ -217,8 +233,8 @@ class OvpnDownloader:
                         import time
                         time.sleep(15.0)
                     else:
-                        status_date = res_tok.status_code if res_tok else "scrape"
-                        logger.debug(f"PublicVPNList token/download status {status_date} for {source_id}")
+                        status_code = res_tok.status_code if res_tok else "scrape"
+                        logger.debug(f"PublicVPNList token/download status {status_code} for {source_id}")
                 except Exception as e:
                     logger.debug(f"PublicVPNList token download attempt {attempt} error for {source_id}: {e}")
                     import time

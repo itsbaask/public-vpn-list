@@ -61,6 +61,7 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
+            pickFirsts.add("**/libbox.so")
         }
     }
 }
@@ -99,6 +100,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.unity.ads)
+
+    // sing-box libbox — real VPN tunneling for VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, WireGuard
+    // Place libbox.aar in app/libs/ — download from https://github.com/SagerNet/sing-box/actions (libbox build artifacts)
+    // or build from source: https://github.com/SagerNet/sing-box (make lib_install)
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
 
     implementation(project(":openvpn"))
     implementation(libs.androidx.appcompat)

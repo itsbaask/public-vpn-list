@@ -26,7 +26,7 @@ import javax.inject.Singleton
 class OpenVpnEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val serverRepository: ServerRepository
-) : VpnEngine, VpnStatus.StateListener {
+) : VpnEngine, VpnStatus.StateListener, VpnStatus.LogListener {
 
     private val _legacyEngineState = MutableStateFlow(ConnectionStatus.LEVEL_NOTCONNECTED)
     val legacyEngineState: StateFlow<ConnectionStatus> = _legacyEngineState.asStateFlow()
@@ -40,6 +40,7 @@ class OpenVpnEngine @Inject constructor(
     init {
         try {
             VpnStatus.addStateListener(this)
+            VpnStatus.addLogListener(this)
             val active = VpnStatus.isVPNActive()
             _legacyEngineState.value = if (active) ConnectionStatus.LEVEL_CONNECTED else ConnectionStatus.LEVEL_NOTCONNECTED
             
@@ -60,23 +61,23 @@ class OpenVpnEngine @Inject constructor(
             _state.value = VpnState.Connecting(server)
             running = true
 
-            // 20-second connection timeout watchdog
+            // 30-second connection timeout watchdog (real OpenVPN handshakes can take up to 20s)
             connectionTimeoutJob?.cancel()
             connectionTimeoutJob = CoroutineScope(Dispatchers.Main).launch {
-                delay(20000L)
+                delay(30000L)
                 val currentState = _state.value
                 if (currentState is VpnState.Connecting) {
                     Log.w("OpenVpnEngine", "Connection timeout reached for server=${server.name}")
                     stop()
-                    _state.value = VpnState.Error("Connection timeout. Server unreachable or blocked.")
+                    _state.value = VpnState.Error("Connection timeout — server unreachable or blocked.")
                 }
             }
 
             val config = serverRepository.fetchFullConfig(server.id)
-            if (config.isBlank()) {
+            if (config.isNullOrBlank()) {
                 connectionTimeoutJob?.cancel()
-                _state.value = VpnState.Error("Empty OpenVPN configuration")
-                return@withContext Result.failure(IllegalStateException("Empty OpenVPN configuration"))
+                _state.value = VpnState.Error("Could not download VPN configuration from server. Check your connection and try again.")
+                return@withContext Result.failure(IllegalStateException("No valid OpenVPN configuration available for server=${server.id}"))
             }
 
             val cp = ConfigParser()
@@ -113,7 +114,7 @@ class OpenVpnEngine @Inject constructor(
         } catch (e: Throwable) {
             connectionTimeoutJob?.cancel()
             Log.e("OpenVpnEngine", "OpenVPN start failed for server=${server.id}", e)
-            _state.value = VpnState.Error("OpenVPN start failed: ${e.localizedMessage ?: "Unknown"}")
+            _state.value = VpnState.Error("OpenVPN start failed: ${e.localizedMessage ?: "Unknown error"}")
             Result.failure(e)
         }
     }
@@ -193,6 +194,10 @@ class OpenVpnEngine @Inject constructor(
         } catch (e: Throwable) {
             Log.e("OpenVpnEngine", "Error in updateState", e)
         }
+    }
+
+    override fun newLog(logItem: de.blinkt.openvpn.core.LogItem?) {
+        Log.i("OpenVpnLog", logItem?.toString() ?: "")
     }
 
     override fun setConnectedVPN(uuid: String?) {

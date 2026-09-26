@@ -73,8 +73,10 @@ class ManifestBuilder:
             proto = str(meta.get("protocol", "openvpn")).lower()
 
             if proto == "openvpn":
-                profile_rel_path = f"profiles/{sid}.ovpn"
-                profile_full_url = f"/v1/profiles/{sid}.ovpn"
+                pid = meta.get("profile_id")
+                storage_id = str(pid) if (pid and str(pid).isdigit()) else sid.removeprefix("pvl_")
+                profile_rel_path = f"profiles/{storage_id}.ovpn"
+                profile_full_url = meta.get("profile_url") or f"/v1/profiles/{storage_id}.ovpn"
             else:
                 profile_rel_path = meta.get("config_uri") or meta.get("profile_source_url") or ""
                 profile_full_url = profile_rel_path

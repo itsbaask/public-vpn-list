@@ -18,6 +18,8 @@ dependencyResolutionManagement {
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
         maven { url = uri("https://android-sdk.is.com/") } // Unity Ads
+        maven { url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/") } // sing-box libbox
+        maven { url = uri("https://maven.sagernet.org/repository/releases/") } // sing-box stable releases
     }
 }
 

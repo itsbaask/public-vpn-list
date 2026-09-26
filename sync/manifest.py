@@ -70,16 +70,26 @@ class ManifestBuilder:
             sha256_val = info["sha256"]
             size_val = info.get("size", 0)
             updated_at_val = info.get("updated_at", iso_now)
+            proto = str(meta.get("protocol", "openvpn")).lower()
+
+            if proto == "openvpn":
+                pid = meta.get("profile_id")
+                storage_id = str(pid) if (pid and str(pid).isdigit()) else sid.removeprefix("pvl_")
+                profile_rel_path = f"profiles/{storage_id}.ovpn"
+                profile_full_url = meta.get("profile_url") or f"/v1/profiles/{storage_id}.ovpn"
+            else:
+                profile_rel_path = meta.get("config_uri") or meta.get("profile_source_url") or ""
+                profile_full_url = profile_rel_path
 
             manifest_servers[sid] = {
-                "profile": f"profiles/{sid}.ovpn",
+                "profile": profile_rel_path,
                 "sha256": sha256_val,
                 "size": size_val,
                 "updated_at": updated_at_val
             }
 
             srv_copy = dict(meta)
-            srv_copy["profile_url"] = f"/v1/profiles/{sid}.ovpn"
+            srv_copy["profile_url"] = profile_full_url
             srv_copy["profile_sha256"] = sha256_val
             srv_copy["tier"] = tier_assignment.get(sid, "free")
 

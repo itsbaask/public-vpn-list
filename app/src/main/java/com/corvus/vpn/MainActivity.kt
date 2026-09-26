@@ -149,6 +149,8 @@ class MainActivity : ComponentActivity() {
 
                 var currentScreen by remember { mutableStateOf("home") }
                 var selectedServer by remember { mutableStateOf<Server?>(null) }
+                var showConnectedDialog by remember { mutableStateOf(false) }
+                var hasShownDialogForCurrentSession by remember { mutableStateOf(false) }
 
                 onCustomServerImported = { imported ->
                     selectedServer = imported
@@ -172,6 +174,10 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(vpnState) {
                     if (vpnState is VpnState.Connected) {
+                        if (!hasShownDialogForCurrentSession) {
+                            showConnectedDialog = true
+                            hasShownDialogForCurrentSession = true
+                        }
                         val initialSeconds = when (selectedServer?.tier) {
                             "premium_plus" -> 5 * 60
                             "premium" -> 10 * 60
@@ -183,7 +189,16 @@ class MainActivity : ComponentActivity() {
                         }
                     } else if (vpnState is VpnState.Idle || vpnState is VpnState.Error) {
                         sessionManager.stopSession()
+                        hasShownDialogForCurrentSession = false
+                        showConnectedDialog = false
                     }
+                }
+
+                if (showConnectedDialog) {
+                    com.corvus.vpn.ui.components.ConnectedSuccessDialog(
+                        server = selectedServer,
+                        onDismiss = { showConnectedDialog = false }
+                    )
                 }
 
                 when (currentScreen) {

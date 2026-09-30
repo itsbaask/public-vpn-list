@@ -4,12 +4,17 @@ import re
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Tuple
 
+SUPPORTED_PROTOCOLS = {"openvpn", "vless", "vmess", "trojan", "shadowsocks", "hysteria2", "tuic", "wireguard"}
+
 def generate_version_string(ts: datetime) -> str:
     iso_ts = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
     random_suffix = hashlib.sha256(iso_ts.encode("utf-8")).hexdigest()[:6]
     return f"{iso_ts}-{random_suffix}"
 
 def resolve_engine_type(protocol: str) -> str:
+    p = (protocol or "").upper()
+    if p in {"VLESS", "VMESS", "TROJAN", "SHADOWSOCKS", "HYSTERIA2", "TUIC", "WIREGUARD"}:
+        return "XRAY"
     return "OPENVPN"
 
 def is_valid_host(host: str) -> bool:
@@ -31,8 +36,9 @@ class ManifestBuilder:
         now: datetime = None
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
-        Builds manifest.json and servers.json with strict deduplication,
-        quality sorting, and rich metadata for OpenVPN only.
+        Builds manifest.json and servers.json supporting all multi-protocols
+        (OpenVPN, VLESS, VMess, Trojan, Shadowsocks, Hysteria2) with deduplication,
+        quality sorting, and rich metadata.
         """
         if now is None:
             now = datetime.now(timezone.utc)
@@ -40,14 +46,14 @@ class ManifestBuilder:
         version_str = generate_version_string(now)
         iso_now = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        # Step 1: Filter and Deduplicate Entries (OpenVPN only)
+        # Step 1: Filter and Deduplicate Entries Across All Multi-Protocols
         deduped_entries: Dict[str, Dict[str, Any]] = {}
         seen_hosts: Dict[str, Tuple[str, float]] = {}  # dedup_key -> (sid, comp_score)
 
         for sid, info in server_entries.items():
             meta = info.get("metadata", {})
             protocol = (meta.get("protocol") or "openvpn").lower()
-            if protocol != "openvpn":
+            if protocol not in SUPPORTED_PROTOCOLS:
                 continue
 
             host = meta.get("host") or meta.get("exit_ip") or meta.get("id") or ""
@@ -65,7 +71,7 @@ class ManifestBuilder:
             comp_score = (speed_val * 100.0) + (score_val / 1000.0) + max(0.0, 100.0 - lat_val) + source_boost
 
             host_clean = re.sub(r'[^a-z0-9]', '', host.lower())
-            dedup_key = f"openvpn_{host_clean}_{port}_{transport}"
+            dedup_key = f"{protocol}_{host_clean}_{port}_{transport}"
 
             if dedup_key in seen_hosts:
                 prev_sid, prev_score = seen_hosts[dedup_key]
@@ -106,7 +112,7 @@ class ManifestBuilder:
                 else:
                     tier_assignment[sid] = "premium_plus"
 
-        # Step 3: Build Manifest and Server DTOs (OpenVPN only)
+        # Step 3: Build Manifest and Server DTOs
         manifest_servers = {}
         servers_list = []
 
@@ -128,11 +134,15 @@ class ManifestBuilder:
                 "updated_at": updated_at_val
             }
 
+            proto_upper = (meta.get("protocol") or "OPENVPN").upper()
+            engine_upper = resolve_engine_type(proto_upper)
+
             srv_copy = dict(meta)
             srv_copy["id"] = sid
-            srv_copy["engine"] = "OPENVPN"
-            srv_copy["protocol"] = "OPENVPN"
-            srv_copy["profile_url"] = profile_full_url
+            srv_copy["engine"] = engine_upper
+            srv_copy["protocol"] = proto_upper
+            srv_copy["profile_url"] = profile_full_url if proto_upper == "OPENVPN" else (meta.get("config_uri") or profile_full_url)
+            srv_copy["config_uri"] = meta.get("config_uri") or ""
             srv_copy["profile_sha256"] = sha256_val
             srv_copy["tier"] = tier_assignment.get(sid, "free")
             srv_copy["status"] = meta.get("status") or "verified"

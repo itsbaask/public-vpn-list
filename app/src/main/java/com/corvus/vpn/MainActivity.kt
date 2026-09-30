@@ -903,7 +903,14 @@ class MainActivity : ComponentActivity() {
         if (server == null) return
         var targetServer = server
         if (server.id == "best_automatic") {
-            val bestCandidate = allServers.filter { it.tier != "custom" && it.id != "best_automatic" }
+            val protoMode = settingsRepository.vpnProtocolMode.lowercase()
+            val filteredByProto = if (protoMode != "smart") {
+                allServers.filter { it.protocol.lowercase() == protoMode }
+            } else {
+                allServers
+            }
+            val candidates = filteredByProto.ifEmpty { allServers }
+            val bestCandidate = candidates.filter { it.tier != "custom" && it.id != "best_automatic" }
                 .minByOrNull { it.ping ?: 999 }
             if (bestCandidate != null) {
                 targetServer = bestCandidate

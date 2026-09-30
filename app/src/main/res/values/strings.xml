@@ -92,6 +92,16 @@
     <string name="openvpn_mode_desc">High security OpenVPN protocol</string>
     <string name="wireguard_mode">WireGuard</string>
     <string name="wireguard_mode_desc">Ultra-fast WireGuard protocol</string>
+    <string name="vless_mode">VLESS</string>
+    <string name="vless_mode_desc">Ultra-fast Xray VLESS protocol</string>
+    <string name="vmess_mode">VMess</string>
+    <string name="vmess_mode_desc">Stealth encrypted VMess protocol</string>
+    <string name="trojan_mode">Trojan</string>
+    <string name="trojan_mode_desc">Anti-censorship Trojan HTTPS protocol</string>
+    <string name="shadowsocks_mode">Shadowsocks</string>
+    <string name="shadowsocks_mode_desc">Lightweight Shadowsocks proxy</string>
+    <string name="hysteria2_mode">Hysteria2</string>
+    <string name="hysteria2_mode_desc">High-speed QUIC/UDP Hysteria2 protocol</string>
     <string name="select_location">Select Location</string>
     <string name="ping_label">Ping</string>
     <string name="download_speed">Download</string>

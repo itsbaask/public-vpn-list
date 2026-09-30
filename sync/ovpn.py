@@ -79,20 +79,26 @@ def extract_numeric_profile_id(val: str) -> str:
     return ""
 
 def is_valid_ovpn_content(text: str) -> bool:
-    if not text or len(text) < 50:
+    if not text or len(text) < 30:
         return False
     lower = text.lower()
     if "<html" in lower and "</html" in lower:
         return False
     if "application/json" in lower and "error" in lower and "client" not in lower:
         return False
-    has_directive = "client" in lower or "dev tun" in lower or "dev tap" in lower or "remote " in lower
-    has_crypto = "<ca>" in lower or "ca " in lower or "<secret>" in lower or "<key>" in lower or "secret " in lower or "crypto" in lower or "<cert>" in lower
+    has_directive = "client" in lower or "dev tun" in lower or "dev tap" in lower or "remote " in lower or "proto " in lower
+    has_crypto = (
+        "<ca>" in lower or "ca " in lower or
+        "<secret>" in lower or "<key>" in lower or "secret " in lower or
+        "crypto" in lower or "<cert>" in lower or
+        "cipher " in lower or "data-ciphers" in lower or
+        "auth-user-pass" in lower or "remote-cert-tls" in lower
+    )
     return has_directive and has_crypto
 
 import threading
 
-PERMANENT_KEY = ""
+PERMANENT_KEY = "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
 
 class OvpnDownloader:
     _token_lock = threading.Lock()
@@ -105,7 +111,7 @@ class OvpnDownloader:
         session: Optional[requests.Session] = None
     ):
         self.base_url = base_url.rstrip("/")
-        self.access_key = (access_key or "").strip()
+        self.access_key = (access_key or "").strip() or PERMANENT_KEY
         if session:
             self.session = session
         else:

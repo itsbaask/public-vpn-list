@@ -20,10 +20,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_PROTOCOLS = frozenset({
-    "openvpn", "vless", "vmess", "trojan", "shadowsocks", "hysteria2", "hy2", "tuic", "wireguard",
-})
-
 class SourceUnavailableError(Exception):
     """Raised when no server sources succeeded."""
     pass
@@ -212,7 +208,7 @@ class CountryNormalizer:
         "SY": ("Syria", "🇸🇾"),
         "TW": ("Taiwan", "🇹🇼"),
         "TJ": ("Tajikistan", "🇹🇯"),
-        "TZ": ("Tanzania", "🇹🇿"),
+        "TZ": ("Tanzania", "🇹ℤ"),
         "TH": ("Thailand", "🇹🇭"),
         "TL": ("Timor-Leste", "🇹🇱"),
         "TG": ("Togo", "🇹🇬"),
@@ -503,11 +499,11 @@ class ServerInfo:
             "profile_sha256": self.config_sha256,
         }
 
-PERMANENT_KEY = ""
+PERMANENT_KEY = "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
 
 class MultiSourceHarvester:
     def __init__(self, access_key: Optional[str] = None, session: Optional[requests.Session] = None):
-        self.access_key = (access_key or "").strip()
+        self.access_key = (access_key or "").strip() or PERMANENT_KEY
         if session:
             self.session = session
         elif HAS_CLOUDSCRAPER:
@@ -543,14 +539,12 @@ class MultiSourceHarvester:
         4. VPNBook Free OpenVPN API (https://www.vpnbook.com)
         5. Riseup VPN
         6. PublicVPNList Legacy Native API (Fallback)
+        7. OMGVPN (3,000+ Multi-source Servers)
         """
         harvested: Dict[str, ServerInfo] = {}
         seen_dedup_keys: Set[str] = set()
 
         def add_server(server: ServerInfo):
-            if (server.protocol or "").strip().lower() not in SUPPORTED_PROTOCOLS:
-                logger.info("Skipping unsupported protocol for source_id=%s", server.source_id)
-                return
             dedup_key = server.deduplication_key
             if dedup_key in seen_dedup_keys:
                 existing = harvested.get(server.source_id)
@@ -614,6 +608,15 @@ class MultiSourceHarvester:
         except Exception as e:
             logger.warning(f"PublicVPNList Legacy Native API harvest error: {e}")
 
+        # 7. OMGVPN (3,000+ Multi-source Servers)
+        try:
+            omgvpn_servers = self._fetch_omgvpn()
+            logger.info(f"OMGVPN harvested {len(omgvpn_servers)} active servers.")
+            for s in omgvpn_servers.values():
+                add_server(s)
+        except Exception as e:
+            logger.warning(f"OMGVPN harvest error: {e}")
+
         if not harvested:
             raise SourceUnavailableError("Failed to harvest servers from any public source.")
 
@@ -622,11 +625,11 @@ class MultiSourceHarvester:
 
     def _fetch_publicvpnlist_v1_api(self) -> Dict[str, ServerInfo]:
         """
-        Fetches multi-protocol servers (vless, vmess, shadowsocks, trojan, hysteria2)
+        Fetches multi-protocol servers (openvpn, vless, vmess, shadowsocks, trojan, hysteria2)
         from publicvpnlist.com/api/v1/servers using the permanent Bearer Key.
         """
         servers: Dict[str, ServerInfo] = {}
-        protocols = ["openvpn"]
+        protocols = ["openvpn", "vless", "vmess", "shadowsocks", "trojan", "hysteria2"]
 
         headers = {
             "Authorization": f"Bearer {self.access_key}",
@@ -966,6 +969,18 @@ verb 3
 
                     if ip:
                         sid = f"riseup_{ip}_{port}_{proto}"
+                        ovpn_content = f"""client
+dev tun
+proto {proto}
+remote {ip} {port}
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+cipher AES-256-GCM
+data-ciphers AES-256-GCM:AES-128-GCM
+verb 3
+"""
                         servers[sid] = ServerInfo(
                             source_id=sid,
                             source_name="riseup_vpn",
@@ -973,9 +988,170 @@ verb 3
                             host=ip,
                             port=port,
                             transport=proto,
-                            protocol="openvpn"
+                            protocol="openvpn",
+                            ovpn_content=ovpn_content
                         )
         except Exception as err:
             logger.debug(f"Riseup VPN fetch error: {err}")
 
         return servers
+
+    def _fetch_omgvpn(self) -> Dict[str, ServerInfo]:
+        """
+        Harvests 3,000+ servers directly from OMGVPN (https://omgvpn.com/).
+        Extracts JavaScript embedded lists: array1 (VPNGate) and array2 (GIAMPING / Custom).
+        """
+        url = "https://omgvpn.com/"
+        servers: Dict[str, ServerInfo] = {}
+
+        try:
+            res = self.session.get(url, timeout=(10, 30))
+            if res.status_code != 200:
+                logger.warning(f"OMGVPN returned HTTP {res.status_code}")
+                return servers
+
+            html = res.text
+
+            def extract_array(name: str) -> List[str]:
+                pattern = rf"\blet\s+{re.escape(name)}\s*=\s*(\[.*?\]);"
+                match = re.search(pattern, html, re.S)
+                if not match:
+                    return []
+                try:
+                    vals = json.loads(match.group(1))
+                    return [str(v).strip() for v in vals if str(v).strip()]
+                except Exception as e:
+                    logger.warning(f"Failed to decode OMGVPN {name}: {e}")
+                    return []
+
+            arr1 = extract_array("array1")
+            arr2 = extract_array("array2")
+
+            # Process array1 (OpenGW / VPNGate servers)
+            for raw in arr1:
+                cleaned = raw.strip().rstrip("↓").strip()
+                parts = [p.strip().rstrip("↓").strip() for p in cleaned.split("•")]
+                if len(parts) >= 7:
+                    score_raw = parts[0]
+                    hostname = parts[1]
+                    usage = parts[2]
+                    latency_raw = parts[3]
+                    kind = parts[4]
+                    location = parts[5]
+                    ipv4 = parts[6]
+
+                    if not hostname and not ipv4:
+                        continue
+
+                    host = hostname or ipv4
+                    sid = f"omgvpn_a1_{clean_storage_id(host)}"
+
+                    speed_val = 0.0
+                    score_val = int(score_raw) if score_raw.isdigit() else 0
+                    try:
+                        latency_val = int(float(latency_raw))
+                    except (ValueError, TypeError):
+                        latency_val = 0
+
+                    c_hint = location.split("~")[0].strip() if "~" in location else ""
+                    c_code, c_name, _ = CountryNormalizer.normalize(location, code_hint=c_hint)
+
+                    ovpn_content = f"""client
+dev tun
+proto udp
+remote {host} 1194
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+cipher AES-256-GCM
+data-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC
+verb 3
+<auth-user-pass>
+vpn
+vpn
+</auth-user-pass>
+"""
+
+                    servers[sid] = ServerInfo(
+                        source_id=sid,
+                        source_name="omgvpn_vpngate",
+                        country_code=c_code,
+                        country_name=c_name,
+                        host=host,
+                        port=1194,
+                        transport="udp",
+                        protocol="openvpn",
+                        exit_ip=ipv4 or host,
+                        speed_mbps=speed_val,
+                        latency_ms=latency_val,
+                        network_score=score_val,
+                        ovpn_content=ovpn_content
+                    )
+
+            # Process array2 (GIAMPING / Custom servers)
+            for raw in arr2:
+                cleaned = raw.strip().rstrip("↓").strip()
+                parts = [p.strip().rstrip("↓").strip() for p in cleaned.split("•")]
+                if len(parts) >= 6:
+                    score_raw = parts[0]
+                    provider = parts[1]
+                    speed_str = parts[2]
+                    hostname = parts[3]
+                    location = parts[4]
+                    ipv4 = parts[5]
+
+                    if not hostname and not ipv4:
+                        continue
+
+                    host = hostname or ipv4
+                    sid = f"omgvpn_a2_{clean_storage_id(host)}"
+
+                    score_val = int(score_raw) if score_raw.isdigit() else 0
+                    speed_val = 0.0
+                    m_speed = re.search(r'(\d+)', speed_str)
+                    if m_speed:
+                        try:
+                            speed_val = float(m_speed.group(1))
+                        except ValueError:
+                            speed_val = 0.0
+
+                    c_hint = location.split("~")[0].strip() if "~" in location else ""
+                    c_code, c_name, _ = CountryNormalizer.normalize(location, code_hint=c_hint)
+
+                    ovpn_content = f"""client
+dev tun
+proto udp
+remote {host} 1194
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+cipher AES-256-GCM
+data-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC
+verb 3
+"""
+
+                    servers[sid] = ServerInfo(
+                        source_id=sid,
+                        source_name="omgvpn_giamping",
+                        country_code=c_code,
+                        country_name=c_name,
+                        host=host,
+                        port=1194,
+                        transport="udp",
+                        protocol="openvpn",
+                        exit_ip=ipv4 or host,
+                        speed_mbps=speed_val,
+                        network_score=score_val,
+                        ovpn_content=ovpn_content
+                    )
+
+            logger.info(f"OMGVPN harvested {len(servers)} total active servers ({len(arr1)} array1 + {len(arr2)} array2).")
+        except Exception as e:
+            logger.warning(f"OMGVPN harvest error: {e}")
+
+        return servers
+

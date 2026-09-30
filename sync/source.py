@@ -968,6 +968,18 @@ verb 3
 
                     if ip:
                         sid = f"riseup_{ip}_{port}_{proto}"
+                        ovpn_content = f"""client
+dev tun
+proto {proto}
+remote {ip} {port}
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+cipher AES-256-GCM
+data-ciphers AES-256-GCM:AES-128-GCM
+verb 3
+"""
                         servers[sid] = ServerInfo(
                             source_id=sid,
                             source_name="riseup_vpn",
@@ -975,7 +987,8 @@ verb 3
                             host=ip,
                             port=port,
                             transport=proto,
-                            protocol="openvpn"
+                            protocol="openvpn",
+                            ovpn_content=ovpn_content
                         )
         except Exception as err:
             logger.debug(f"Riseup VPN fetch error: {err}")

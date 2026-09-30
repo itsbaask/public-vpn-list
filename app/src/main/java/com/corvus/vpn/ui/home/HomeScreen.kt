@@ -84,7 +84,7 @@ fun HomeScreen(
         bottomBar = {
             // Ad banner
             val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
-            if (activity != null && unityAdsManager != null) {
+            if (com.corvus.vpn.data.AppConfig.ENABLE_ADS && activity != null && unityAdsManager != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

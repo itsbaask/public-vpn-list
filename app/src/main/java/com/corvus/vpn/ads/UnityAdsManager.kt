@@ -52,7 +52,7 @@ class UnityAdsManager @Inject constructor(
     private val rewardScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun initialize(context: Context) {
-        if (isInitialized) return
+        if (!AppConfig.ENABLE_ADS || isInitialized) return
         try {
             UnityAds.initialize(context, GAME_ID, TEST_MODE, object : IUnityAdsInitializationListener {
                 override fun onInitializationComplete() {
@@ -117,6 +117,12 @@ class UnityAdsManager @Inject constructor(
      * the Worker verifies Unity's HMAC callback and records the OID for replay protection.
      */
     fun showRewardedAd(activity: Activity, accountId: String?, onAdCompleted: () -> Unit = {}) {
+        if (!AppConfig.ENABLE_ADS) {
+            Log.d(TAG, "Ads disabled in AppConfig: instantly granting 24 hours and executing callback for testing.")
+            sessionManager.addTime(24 * 3600)
+            onAdCompleted()
+            return
+        }
         try {
             if (!isInitialized || !UnityAds.isInitialized) return
             val principal = accountId?.takeIf { it.isNotBlank() } ?: "device:$installationId"
@@ -180,6 +186,7 @@ class UnityAdsManager @Inject constructor(
     }
 
     fun showInterstitialAd(activity: Activity) {
+        if (!AppConfig.ENABLE_ADS) return
         try {
             val now = System.currentTimeMillis()
             if (!isInitialized || now - lastInterstitialAt < interstitialCooldownMs || !UnityAds.isInitialized) return
@@ -202,10 +209,10 @@ class UnityAdsManager @Inject constructor(
     }
 
     fun createBannerView(activity: Activity): android.view.View {
+        if (!AppConfig.ENABLE_ADS || !isInitialized) {
+            return android.view.View(activity)
+        }
         try {
-            if (!isInitialized) {
-                return android.view.View(activity)
-            }
             val bannerView = com.unity3d.services.banners.BannerView(
                 activity,
                 BANNER_ID,

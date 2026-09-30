@@ -151,9 +151,12 @@ class ManifestBuilder:
 
         servers_list.sort(key=sort_key)
 
+        best_server_id = servers_list[0]["id"] if servers_list else None
+
         servers_json_data = {
             "schema_version": self.schema_version,
             "version": version_str,
+            "best_automatic_server_id": best_server_id,
             "count": len(servers_list),
             "servers": servers_list
         }
@@ -165,6 +168,7 @@ class ManifestBuilder:
             "schema_version": self.schema_version,
             "version": version_str,
             "generated_at": iso_now,
+            "best_automatic_server_id": best_server_id,
             "source_snapshot": servers_sha256[:16],
             "count": len(manifest_servers),
             "servers_url": "/v1/servers.json",

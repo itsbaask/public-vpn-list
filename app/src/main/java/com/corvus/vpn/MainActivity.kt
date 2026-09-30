@@ -554,7 +554,8 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onServerClick = { currentScreen = "servers" },
                                 onSettingsClick = { currentScreen = "settings" },
-                                onProClick = { currentScreen = "pro" }
+                                onProClick = { currentScreen = "pro" },
+                                onSpeedTestClick = { previousScreen = currentScreen; currentScreen = "speed_test" }
                             )
                         }
                         "servers" -> {
@@ -870,6 +871,12 @@ class MainActivity : ComponentActivity() {
                                     showFeatureGateModal = true
                                 },
                                 onBack = { currentScreen = "home" }
+                            )
+                        }
+                        "speed_test" -> {
+                            com.corvus.vpn.ui.speedtest.SpeedTestScreen(
+                                serverName = selectedServer?.name ?: "Corvus Core Server",
+                                onBack = { currentScreen = previousScreen }
                             )
                         }
                         "pro" -> {

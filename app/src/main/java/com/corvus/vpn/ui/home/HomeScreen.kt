@@ -59,7 +59,8 @@ fun HomeScreen(
     onToggleClick: () -> Unit,
     onServerClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onProClick: () -> Unit
+    onProClick: () -> Unit,
+    onSpeedTestClick: () -> Unit = {}
 ) {
     var showModeDialog by remember { mutableStateOf(false) }
 
@@ -147,7 +148,7 @@ fun HomeScreen(
                     exit = fadeOut(tween(250)) + shrinkVertically(tween(250))
                 ) {
                     Column {
-                        SpeedRow(downloadSpeed = downloadSpeed, uploadSpeed = uploadSpeed)
+                        SpeedRow(downloadSpeed = downloadSpeed, uploadSpeed = uploadSpeed, onClick = onSpeedTestClick)
                         Spacer(Modifier.height(16.dp))
                     }
                 }
@@ -480,13 +481,14 @@ private fun ConnectingArcs() {
 
 // ── Speed row (slides in when connected) ─────────────────────────────────────
 @Composable
-private fun SpeedRow(downloadSpeed: String, uploadSpeed: String) {
+private fun SpeedRow(downloadSpeed: String, uploadSpeed: String, onClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(CrowSurface)
             .border(0.5.dp, CrowBorderMid, RoundedCornerShape(16.dp))
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="corvus_app_name">Corvus VPN</string>
+    <string name="notif_status_protected">保護されています</string>
+    <string name="notif_status_not_protected">保護されていません</string>
+    <string name="notif_status_connecting">接続中...</string>
+    <string name="notif_status_failed">接続失敗</string>
+    <string name="notif_action_disconnect">切断</string>
+    <string name="notif_action_open_app">アプリを開く</string>
+</resources>

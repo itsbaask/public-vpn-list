@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--OVPN-->
+    <string name="netstatus" translatable="false">Network Status: %s</string>
+
+    <string name="keychain_access" translatable="false">Cannot access the Android Keychain Certificates. This can be caused by a firmware upgrade or by restoring a backup of the app/app settings. Please edit the VPN and reselect the certificate under basic settings to recreate the permission to access the certificate.</string>
+    <string name="keychain_nocacert" translatable="false">No CA Certificate returned while reading from Android keystore. Authentication will probably fail.</string>
+    <string name="keyChainAccessError" translatable="false">KeyChain Access error: %s</string>
+    <string name="password" translatable="false">Password</string>
+    <string name="error_rsa_sign" translatable="false">Error signing with Android keystore key %1$s: %2$s</string>
+    <string name="bits_per_second" translatable="false">%.0f bit/s</string>
+    <string name="kbits_per_second" translatable="false">%.1f kbit/s</string>
+    <string name="mbits_per_second" translatable="false">%.1f Mbit/s</string>
+    <string name="gbits_per_second" translatable="false">%.1f Gbit/s</string>
+    <string name="volume_byte" translatable="false">%.0f B</string>
+    <string name="volume_kbyte" translatable="false">%.1f kB</string>
+    <string name="volume_mbyte" translatable="false">%.1f MB</string>
+    <string name="volume_gbyte" translatable="false">%.1f GB</string>
+    <string name="permission_revoked" translatable="false">VPN permission revoked by OS (e.g. other VPN program started), stopping VPN</string>
+    <string name="building_configration" translatable="false">Building configuration…</string>
+    <string name="last_openvpn_tun_config" translatable="false">Opening tun interface:</string>
+    <string name="opentun_no_ipaddr" translatable="false">Refusing to open tun device without IP information</string>
+    <string name="dns_add_error" translatable="false">Could not add DNS Server \"%1$s\", rejected by the system: %2$s</string>
+    <string name="ip_add_error" translatable="false">Could not configure IP Address \"%1$s\", rejected by the system: %2$s</string>
+    <string name="ignore_multicast_route" translatable="false">Ignoring multicast route: %s</string>
+    <string name="route_rejected" translatable="false">Route rejected by Android</string>
+    <string name="local_ip_info" translatable="false">Local IPv4: %1$s/%2$d IPv6: %3$s MTU: %4$d</string>
+    <string name="dns_server_info" translatable="false">DNS Server: %1$s, Domain: %2$s</string>
+    <string name="routes_info_incl" translatable="false">Routes: %1$s %2$s</string>
+    <string name="routes_info_excl" translatable="false">Routes excluded: %1$s %2$s</string>
+    <string name="routes_debug" translatable="false">VpnService routes installed: %1$s %2$s</string>
+    <string name="tun_open_error" translatable="false">Failed to open the tun interface</string>
+    <string name="error" translatable="false">"Error: "</string>
+    <string name="session_ipv4string" translatable="false">%1$s - %2$s</string>
+    <string name="session_ipv6string" translatable="false">%1$s - %3$s, %2$s</string>
+    <string name="warn_no_dns" translatable="false">No DNS servers being used. Name resolution may not work. Consider setting custom DNS Servers. Please also note that Android will keep using your proxy settings specified for your mobile/Wi-Fi connection when no DNS servers are set.</string>
+    <string name="route_not_cidr" translatable="false">Cannot make sense of %1$s and %2$s as IP route with CIDR netmask, using /32 as netmask.</string>
+    <string name="route_not_netip" translatable="false">Corrected route %1$s/%2$s to %3$s/%2$s</string>
+    <string name="ip_not_cidr" translatable="false">Got interface information %1$s and %2$s, assuming second address is peer address of remote. Using /32 netmask for local IP. Mode given by OpenVPN is \"%3$s\".</string>
+    <string name="ip_looks_like_subnet" translatable="false">Vpn topology \"%3$s\" specified but ifconfig %1$s %2$s looks more like an IP address with a network mask. Assuming \"subnet\" topology.</string>
+    <string name="state_waitconnectretry" translatable="false">Waiting %ss seconds between connection attempt</string>
+    <string name="using_proxy" translatable="false">Using proxy %1$s %2$d</string>
+    <string name="unhandled_exception">Unhandled exception: %1$s\n\n%2$s</string>
+    <string name="getproxy_error" translatable="false">Error getting proxy settings: %s</string>
+    <string name="abi_mismatch" translatable="false">Preferred native ABI precedence of this device (%1$s) and ABI reported by native libraries (%2$s) mismatch</string>
+</resources>

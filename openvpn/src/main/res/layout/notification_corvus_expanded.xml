@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  notification_corvus_expanded.xml
+  Super clean & sleek RemoteViews layout for Corvus VPN notification (expanded).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/corvus_expanded_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="18dp"
+    android:paddingEnd="18dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp"
+    android:background="@drawable/bg_corvus_notif_card">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- Header: Logo + App Name -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_stat_vpn"
+                android:tint="@color/corvus_notif_text_secondary"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/corvus_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/corvus_notif_text_secondary"
+                android:text="Corvus VPN" />
+        </LinearLayout>
+
+        <!-- Protection Status Line -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="5dp">
+
+            <ImageView
+                android:id="@+id/corvus_status_dot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:src="@drawable/ic_status_dot"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/corvus_status_headline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:textSize="16sp"
+                android:textColor="@color/corvus_notif_text_primary"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Server Name (Without IP) -->
+        <TextView
+            android:id="@+id/corvus_server_line"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textSize="13sp"
+            android:textColor="@color/corvus_notif_text_secondary"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- Action Button (Disconnect / Open App) -->
+    <TextView
+        android:id="@+id/corvus_action_button"
+        android:layout_width="wrap_content"
+        android:layout_height="34dp"
+        android:layout_marginStart="14dp"
+        android:gravity="center"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:textSize="11.5sp"
+        android:textStyle="bold"
+        android:textColor="@color/corvus_notif_btn_text"
+        android:background="@drawable/bg_corvus_notif_button" />
+
+</LinearLayout>

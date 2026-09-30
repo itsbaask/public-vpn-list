@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Corvus Notification Dark Theme Colors -->
+    <color name="corvus_notif_card_bg">#121614</color>
+    <color name="corvus_notif_card_stroke">#242C27</color>
+    <color name="corvus_notif_btn_bg">#1A211D</color>
+    <color name="corvus_notif_btn_text">#F5F7F5</color>
+
+    <color name="corvus_notif_text_primary">#F5F7F5</color>
+    <color name="corvus_notif_text_secondary">#9AA59D</color>
+    <color name="corvus_notif_text_muted">#626B65</color>
+    <color name="corvus_notif_divider">#1A211D</color>
+
+    <color name="corvus_notif_status_connected">#39FF88</color>
+    <color name="corvus_notif_dot_connected">#39FF88</color>
+
+    <color name="corvus_notif_status_connecting">#9AA59D</color>
+    <color name="corvus_notif_dot_connecting">#626B65</color>
+
+    <color name="corvus_notif_status_reconnecting">#5CE1FF</color>
+    <color name="corvus_notif_dot_reconnecting">#5CE1FF</color>
+
+    <color name="corvus_notif_status_error">#FF4D5A</color>
+    <color name="corvus_notif_dot_error">#FF4D5A</color>
+
+    <color name="corvus_notif_status_disconnected">#9AA59D</color>
+    <color name="corvus_notif_dot_disconnected">#626B65</color>
+
+    <color name="corvus_notif_info">#5CE1FF</color>
+    <color name="corvus_notif_accent">#39FF88</color>
+</resources>

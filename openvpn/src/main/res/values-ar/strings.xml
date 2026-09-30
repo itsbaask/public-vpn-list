@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="corvus_app_name">Corvus VPN</string>
+    <string name="notif_status_protected">محمي</string>
+    <string name="notif_status_not_protected">غير محمي</string>
+    <string name="notif_status_connecting">جاري الاتصال...</string>
+    <string name="notif_status_failed">فشل الاتصال</string>
+    <string name="notif_action_disconnect">قطع الاتصال</string>
+    <string name="notif_action_open_app">فتح التطبيق</string>
+</resources>

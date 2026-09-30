@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="corvus_app_name">Corvus VPN</string>
+    <string name="notif_status_protected">Protegido</string>
+    <string name="notif_status_not_protected">Não protegido</string>
+    <string name="notif_status_connecting">Conectando...</string>
+    <string name="notif_status_failed">Falha na conexão</string>
+    <string name="notif_action_disconnect">Desconectar</string>
+    <string name="notif_action_open_app">Abrir app</string>
+</resources>

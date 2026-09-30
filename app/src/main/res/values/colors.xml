@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="splash_background">#050505</color>
+    <color name="oled_background">#000000</color>
+    <color name="oled_surface">#121212</color>
+    <color name="colorAccent">#00E676</color>
+</resources>

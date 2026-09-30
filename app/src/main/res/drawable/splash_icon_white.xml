@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="288"
+    android:viewportHeight="288">
+  <!-- Solid White Foreground Logo for Splash -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M144,24 C77.7,24 24,77.7 24,144 s53.7,120 120,120 120,-53.7 120,-120 S210.3,24 144,24 z M144,60 c46.3,0 84,37.7 84,84 s-37.7,84 -84,84 -84,-37.7 -84,-84 37.7,-84 84,-84 z"/>
+</vector>

@@ -227,16 +227,38 @@ class OpenVpnEngine @Inject constructor(
     private fun sanitizeOpenVpnConfig(rawConfig: String): String {
         val lines = rawConfig.split("\n")
         val validLines = mutableListOf<String>()
+        var insideXmlBlock = false
+
         for (line in lines) {
             val trimmed = line.trim()
+
+            if (trimmed.startsWith("<") && !trimmed.startsWith("</") && trimmed.contains(">")) {
+                insideXmlBlock = true
+                validLines.add(line)
+                continue
+            }
+            if (trimmed.startsWith("</") && trimmed.contains(">")) {
+                insideXmlBlock = false
+                validLines.add(line)
+                continue
+            }
+
+            if (insideXmlBlock) {
+                // Preserving exact Base64 PEM certificate & key contents
+                validLines.add(line)
+                continue
+            }
+
             if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith(";")) {
                 continue
             }
-            // Filter out non-directive lines such as relative paths (/v1/profiles/...) or URLs
-            if (trimmed.startsWith("/") || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+
+            // Filter out non-directive lines such as relative URLs outside XML blocks
+            if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
                 Log.w("OpenVpnEngine", "Sanitizing non-directive line from config: $trimmed")
                 continue
             }
+
             validLines.add(line)
         }
         var result = validLines.joinToString("\n")

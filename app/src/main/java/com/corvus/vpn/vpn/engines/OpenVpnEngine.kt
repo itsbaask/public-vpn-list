@@ -114,14 +114,16 @@ class OpenVpnEngine @Inject constructor(
             if (vp.mAlias == null) {
                 vp.mAlias = "vpn"
             }
-            if (vp.mAuthenticationType == VpnProfile.TYPE_KEYSTORE || (vp.mClientCertFilename.isNullOrEmpty() && vp.mPKCS12Filename.isNullOrEmpty() && vp.mAlias.isNullOrEmpty())) {
-                vp.mAuthenticationType = VpnProfile.TYPE_USERPASS
+
+            // Ensure username and password default to "vpn" if missing
+            if (vp.mUsername.isNullOrEmpty()) {
+                vp.mUsername = "vpn"
+            }
+            if (vp.mPassword.isNullOrEmpty()) {
+                vp.mPassword = "vpn"
             }
 
-            if ("auth-user-pass" in config.lowercase()) {
-                if (vp.mUsername.isNullOrEmpty() || vp.mPassword.isNullOrEmpty()) {
-                    throw IllegalArgumentException("OpenVPN auth-user-pass is configured but credentials are missing")
-                }
+            if (vp.mAuthenticationType == VpnProfile.TYPE_KEYSTORE && (vp.mClientCertFilename.isNullOrEmpty() && vp.mPKCS12Filename.isNullOrEmpty() && vp.mAlias.isNullOrEmpty())) {
                 vp.mAuthenticationType = VpnProfile.TYPE_USERPASS
             }
 
@@ -240,6 +242,12 @@ class OpenVpnEngine @Inject constructor(
         var result = validLines.joinToString("\n")
         if (!result.contains("client") && !result.contains("dev tun") && !result.contains("dev tap")) {
             result = "client\ndev tun\n$result"
+        }
+        if (!result.contains("auth-user-pass")) {
+            result = "auth-user-pass\n$result"
+        }
+        if (!result.contains("data-ciphers") && !result.contains("cipher ")) {
+            result = "data-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC:AES-128-CBC:BF-CBC\ndata-ciphers-fallback BF-CBC\n$result"
         }
         if (!result.contains("<ca>") && !result.contains("ca ")) {
             result = "$result\n$DEFAULT_FALLBACK_CA\n"

@@ -64,10 +64,10 @@ class OpenVpnEngine @Inject constructor(
             _state.value = VpnState.Connecting(server)
             running = true
 
-            // 20-second connection timeout watchdog (as requested by user)
+            // 12-second connection timeout watchdog
             connectionTimeoutJob?.cancel()
             connectionTimeoutJob = CoroutineScope(Dispatchers.Main).launch {
-                delay(20000L)
+                delay(12000L)
                 val currentState = _state.value
                 if (currentState is VpnState.Connecting) {
                     Log.w("OpenVpnEngine", "Connection timeout reached for server=${server.name}")
@@ -270,6 +270,12 @@ class OpenVpnEngine @Inject constructor(
         }
         if (!result.contains("data-ciphers") && !result.contains("cipher ")) {
             result = "data-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC:AES-128-CBC:BF-CBC\ndata-ciphers-fallback BF-CBC\n$result"
+        }
+        if (!result.contains("connect-timeout")) {
+            result = "connect-timeout 8\n$result"
+        }
+        if (!result.contains("server-poll-timeout")) {
+            result = "server-poll-timeout 8\n$result"
         }
         if (!result.contains("<ca>") && !result.contains("ca ")) {
             result = "$result\n$DEFAULT_FALLBACK_CA\n"

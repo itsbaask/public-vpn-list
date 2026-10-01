@@ -555,7 +555,8 @@ class MainActivity : ComponentActivity() {
                                 onServerClick = { currentScreen = "servers" },
                                 onSettingsClick = { currentScreen = "settings" },
                                 onProClick = { currentScreen = "pro" },
-                                onSpeedTestClick = { previousScreen = currentScreen; currentScreen = "speed_test" }
+                                onSpeedTestClick = { previousScreen = currentScreen; currentScreen = "speed_test" },
+                                onMyIpClick = { previousScreen = currentScreen; currentScreen = "my_ip" }
                             )
                         }
                         "servers" -> {
@@ -897,6 +898,8 @@ class MainActivity : ComponentActivity() {
                             server = selectedServer,
                             downloadSpeed = rxSpeedStr,
                             uploadSpeed = txSpeedStr,
+                            onSpeedTestClick = { previousScreen = currentScreen; currentScreen = "speed_test" },
+                            onMyIpClick = { previousScreen = currentScreen; currentScreen = "my_ip" },
                             onDismiss = { showConnectedDialog = false }
                         )
                     }

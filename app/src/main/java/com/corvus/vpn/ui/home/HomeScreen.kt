@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -60,7 +61,8 @@ fun HomeScreen(
     onServerClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onProClick: () -> Unit,
-    onSpeedTestClick: () -> Unit = {}
+    onSpeedTestClick: () -> Unit = {},
+    onMyIpClick: () -> Unit = {}
 ) {
     var showModeDialog by remember { mutableStateOf(false) }
 
@@ -141,7 +143,7 @@ fun HomeScreen(
 
                 Spacer(Modifier.weight(1f))
 
-                // Speed stats slide in when connected
+                // Speed stats & quick action chips slide in when connected
                 AnimatedVisibility(
                     visible = isConnected,
                     enter = fadeIn(tween(400)) + expandVertically(tween(400)),
@@ -149,6 +151,67 @@ fun HomeScreen(
                 ) {
                     Column {
                         SpeedRow(downloadSpeed = downloadSpeed, uploadSpeed = uploadSpeed, onClick = onSpeedTestClick)
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(CrowSurface)
+                                    .border(0.5.dp, CrowBorderMid, RoundedCornerShape(12.dp))
+                                    .clickable(role = Role.Button, onClick = onSpeedTestClick)
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Speed,
+                                        contentDescription = null,
+                                        tint = CrowAccent,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.speed_test),
+                                        color = CrowText,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(CrowSurface)
+                                    .border(0.5.dp, CrowBorderMid, RoundedCornerShape(12.dp))
+                                    .clickable(role = Role.Button, onClick = onMyIpClick)
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "🌐",
+                                        fontSize = 13.sp
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.my_ip),
+                                        color = CrowText,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
                         Spacer(Modifier.height(16.dp))
                     }
                 }

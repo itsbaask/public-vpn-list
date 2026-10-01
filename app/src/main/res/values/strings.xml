@@ -27,6 +27,7 @@
     <string name="persistent_notification">Persistent Notification</string>
     <string name="about">About</string>
     <string name="my_ip">My IP</string>
+    <string name="speed_test">Speed Test</string>
     <string name="language">Language</string>
     <string name="select_language">Select Language</string>
     <string name="ip_address">IP Address</string>

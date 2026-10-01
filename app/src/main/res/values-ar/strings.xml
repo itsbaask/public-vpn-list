@@ -28,6 +28,7 @@
     <string name="persistent_notification">إشعار شريط الحالة الدائم</string>
     <string name="about">حول التطبيق</string>
     <string name="my_ip">عنوان الـ IP الخاص بي</string>
+    <string name="speed_test">اختبار السرعة</string>
     <string name="language">لغة التطبيق</string>
     <string name="select_language">اختر لغة التطبيق</string>
     <string name="ip_address">عنوان الـ IP</string>

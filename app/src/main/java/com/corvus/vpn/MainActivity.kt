@@ -983,34 +983,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun getRxSpeedString(rxBytesPerSec: Long): String {
-        if (rxBytesPerSec > 0) {
-            return when {
-                rxBytesPerSec >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB/s", rxBytesPerSec / (1024f * 1024f))
-                rxBytesPerSec >= 1024 -> String.format(Locale.US, "%d KB/s", rxBytesPerSec / 1024)
-                else -> String.format(Locale.US, "%d B/s", rxBytesPerSec)
-            }
+        return when {
+            rxBytesPerSec >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB/s", rxBytesPerSec / (1024f * 1024f))
+            rxBytesPerSec >= 1024 -> String.format(Locale.US, "%d KB/s", rxBytesPerSec / 1024)
+            else -> String.format(Locale.US, "%d B/s", rxBytesPerSec)
         }
-        val timeBucket = System.currentTimeMillis() / 2000
-        val rnd = java.util.Random(timeBucket * 31 + 77)
-        val mb = 3.2 + (rnd.nextDouble() * 11.5)
-        return String.format(Locale.US, "%.1f MB/s", mb)
     }
 
     private fun getTxSpeedString(txBytesPerSec: Long): String {
-        if (txBytesPerSec > 0) {
-            return when {
-                txBytesPerSec >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB/s", txBytesPerSec / (1024f * 1024f))
-                txBytesPerSec >= 1024 -> String.format(Locale.US, "%d KB/s", txBytesPerSec / 1024)
-                else -> String.format(Locale.US, "%d B/s", txBytesPerSec)
-            }
-        }
-        val timeBucket = System.currentTimeMillis() / 2000
-        val rnd = java.util.Random(timeBucket * 17 + 99)
-        val kb = 380 + rnd.nextInt(1850)
-        return if (kb >= 1024) {
-            String.format(Locale.US, "%.1f MB/s", kb / 1024f)
-        } else {
-            String.format(Locale.US, "%d KB/s", kb)
+        return when {
+            txBytesPerSec >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB/s", txBytesPerSec / (1024f * 1024f))
+            txBytesPerSec >= 1024 -> String.format(Locale.US, "%d KB/s", txBytesPerSec / 1024)
+            else -> String.format(Locale.US, "%d B/s", txBytesPerSec)
         }
     }
 

@@ -99,8 +99,8 @@ fun SpeedTestScreen(
                 delay(100)
             }
 
-            val avgPing = if (pings.isNotEmpty()) pings.average().toInt() else 24
-            val calcJitter = if (pings.size > 1) (pings.maxOrNull()!! - pings.minOrNull()!!).toInt() else 3
+            val avgPing = if (pings.isNotEmpty()) pings.average().toInt() else 0
+            val calcJitter = if (pings.size > 1) (pings.maxOrNull()!! - pings.minOrNull()!!).toInt() else 0
 
             withContext(Dispatchers.Main) {
                 pingMs = avgPing
@@ -109,41 +109,45 @@ fun SpeedTestScreen(
             }
 
             // Phase 2: Real Download Speed Measurement
-            val downloadUrl = "https://speed.cloudflare.com/__down?bytes=10000000" // 10MB test payload
-            var totalBytes = 0L
-            val startTime = System.currentTimeMillis()
+            val downloadUrls = listOf(
+                "https://speed.cloudflare.com/__down?bytes=25000000",
+                "https://cachefly.cachefly.net/10mb.test",
+                "https://speed.hetzner.de/100MB.bin"
+            )
+            var downloadSuccess = false
+            for (dUrl in downloadUrls) {
+                if (downloadSuccess) break
+                try {
+                    val url = URL(dUrl)
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.connectTimeout = 4000
+                    conn.readTimeout = 6000
+                    conn.instanceFollowRedirects = true
+                    val input = conn.inputStream
+                    val buffer = ByteArray(16384)
+                    var bytesRead: Int
+                    var totalBytes = 0L
+                    val startTime = System.currentTimeMillis()
 
-            try {
-                val url = URL(downloadUrl)
-                val conn = url.openConnection() as HttpURLConnection
-                conn.connectTimeout = 4000
-                conn.readTimeout = 5000
-                val input = conn.inputStream
-                val buffer = ByteArray(8192)
-                var bytesRead: Int
-
-                while (input.read(buffer).also { bytesRead = it } != -1) {
-                    totalBytes += bytesRead
-                    val durationSec = (System.currentTimeMillis() - startTime) / 1000f
-                    if (durationSec > 0.3f) {
-                        val currentMbps = ((totalBytes * 8f) / (1024f * 1024f)) / durationSec
-                        withContext(Dispatchers.Main) {
-                            downloadMbps = currentMbps
-                            gaugeValue = currentMbps.coerceAtMost(100f)
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        totalBytes += bytesRead
+                        val durationSec = (System.currentTimeMillis() - startTime) / 1000f
+                        if (durationSec > 0.2f) {
+                            val currentMbps = ((totalBytes * 8f) / (1024f * 1024f)) / durationSec
+                            withContext(Dispatchers.Main) {
+                                downloadMbps = currentMbps
+                                gaugeValue = currentMbps.coerceAtMost(100f)
+                            }
                         }
+                        if (durationSec >= 6f) break // Max 6 seconds download sample
                     }
-                    if (durationSec >= 4f) break // Max 4 seconds download sample
-                }
-                input.close()
-            } catch (_: Exception) {
-                // Fallback simulation based on network profile
-                for (step in 1..20) {
-                    delay(150)
-                    val simSpeed = 25f + (step * 2.8f) + (step % 3 * 4f)
-                    withContext(Dispatchers.Main) {
-                        downloadMbps = simSpeed
-                        gaugeValue = simSpeed
+                    input.close()
+                    conn.disconnect()
+                    if (totalBytes > 0) {
+                        downloadSuccess = true
                     }
+                } catch (e: Exception) {
+                    android.util.Log.w("SpeedTest", "Download test failed for $dUrl: ${e.message}")
                 }
             }
 
@@ -152,14 +156,25 @@ fun SpeedTestScreen(
                 gaugeValue = 0f
             }
 
-            // Phase 3: Upload Speed Measurement
-            val uploadStart = System.currentTimeMillis()
-            var uploadedBytes = 0L
+            // Phase 3: Real Upload Speed Measurement
             try {
-                val dummyPayload = ByteArray(1024 * 512) // 512KB sample chunks
-                for (chunk in 1..6) {
-                    uploadedBytes += dummyPayload.size
-                    val durationSec = (System.currentTimeMillis() - uploadStart) / 1000f
+                val uploadUrl = URL("https://speed.cloudflare.com/__up")
+                val conn = uploadUrl.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.setChunkedStreamingMode(16384)
+                conn.connectTimeout = 4000
+                conn.readTimeout = 6000
+
+                val output = conn.outputStream
+                val chunk = ByteArray(16384) { 0x41 }
+                var uploadedBytes = 0L
+                val startTime = System.currentTimeMillis()
+
+                for (chunkIndex in 1..256) { // Up to 4MB upload sample
+                    output.write(chunk)
+                    uploadedBytes += chunk.size
+                    val durationSec = (System.currentTimeMillis() - startTime) / 1000f
                     if (durationSec > 0.2f) {
                         val currentUploadMbps = ((uploadedBytes * 8f) / (1024f * 1024f)) / durationSec
                         withContext(Dispatchers.Main) {
@@ -167,14 +182,14 @@ fun SpeedTestScreen(
                             gaugeValue = currentUploadMbps.coerceAtMost(100f)
                         }
                     }
-                    delay(200)
+                    if (durationSec >= 5f) break // Max 5 seconds upload sample
                 }
-            } catch (_: Exception) {}
-
-            if (uploadMbps <= 0f) {
-                withContext(Dispatchers.Main) {
-                    uploadMbps = (downloadMbps * 0.35f).coerceAtLeast(8.5f)
-                }
+                output.flush()
+                output.close()
+                conn.responseCode
+                conn.disconnect()
+            } catch (e: Exception) {
+                android.util.Log.w("SpeedTest", "Upload test failed: ${e.message}")
             }
 
             withContext(Dispatchers.Main) {
